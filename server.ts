@@ -42,13 +42,17 @@ function adapt(
   handler: (req: VercelRequest, res: VercelResponse) => unknown,
   paramKeys: string[] = [],
 ) {
-  return (req: Request, res: Response) => {
+  return async (req: Request, res: Response, next: import("express").NextFunction) => {
     for (const key of paramKeys) {
       if (req.params[key] !== undefined) {
         (req.query as Record<string, string>)[key] = req.params[key];
       }
     }
-    return handler(req as unknown as VercelRequest, res as unknown as VercelResponse);
+    try {
+      await handler(req as unknown as VercelRequest, res as unknown as VercelResponse);
+    } catch (err) {
+      next(err);
+    }
   };
 }
 
