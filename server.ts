@@ -28,6 +28,8 @@ import visitorsCountHandler from "./api/visitors/count.js";
 import paymentsConfigHandler from "./api/payments/config.js";
 import paymentsProcessHandler from "./api/payments/process.js";
 import discountCodesValidateHandler from "./api/discount-codes/validate.js";
+import discountCodesHandler from "./api/discount-codes/index.js";
+import discountCodeByIdHandler from "./api/discount-codes/[id].js";
 import posCategoryByIdHandler from "./api/pos/categories/[id].js";
 import posCategoriesHandler from "./api/pos/categories.js";
 import posItemAssignmentsHandler from "./api/pos-item-assignments.js";
@@ -94,6 +96,8 @@ app.all("/api/payments/process", adapt(paymentsProcessHandler));
 
 // Discount codes
 app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));
+app.all("/api/discount-codes/:id", adapt(discountCodeByIdHandler, ["id"]));
+app.all("/api/discount-codes", adapt(discountCodesHandler));
 
 // POS — specific paths before dynamic :id
 app.all("/api/pos/categories/:id", adapt(posCategoryByIdHandler, ["id"]));
@@ -102,6 +106,19 @@ app.all("/api/pos-item-assignments", adapt(posItemAssignmentsHandler));
 
 // Admin
 app.all("/api/admin/daily-summary/send", adapt(adminDailySummaryHandler));
+
+// SSE endpoint — pushes a heartbeat every 15s so the order board
+// invalidates its queries and stays live without polling overhead.
+app.get("/api/events/orders", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.flushHeaders();
+  res.write("data: connected\n\n");
+  const timer = setInterval(() => res.write("data: ping\n\n"), 15000);
+  req.on("close", () => clearInterval(timer));
+});
 
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
