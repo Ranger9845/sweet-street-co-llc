@@ -1,7 +1,7 @@
 {
   "outputDirectory": "dist/public",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://sweet-street-api.onrender.com/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://sweet-street-co-llc.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
