@@ -102,6 +102,20 @@ app.all("/api/admin/daily-summary/send", adapt(adminDailySummaryHandler));
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
+// Catch unhandled errors so the server doesn't crash on bad requests
+app.use((err: Error, _req: import("express").Request, res: import("express").Response, _next: import("express").NextFunction) => {
+  console.error(err.message);
+  res.status(500).json({ error: err.message });
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err.message);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+});
+
 const PORT = Number(process.env.PORT ?? 10000);
 app.listen(PORT, () => {
   console.log(`API server listening on port ${PORT}`);
