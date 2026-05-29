@@ -1,0 +1,108 @@
+import express from "express";
+import type { Request, Response } from "express";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+
+// API handlers
+import ordersHandler from "./api/orders/index.js";
+import orderStatsHandler from "./api/orders/stats.js";
+import autoBumpHandler from "./api/orders/sweet-street-buddy/auto-bump.js";
+import dailySpecialHandler from "./api/orders/sweet-street-buddy/daily-special.js";
+import lowPerformerAlertsHandler from "./api/orders/sweet-street-buddy/low-performer-alerts.js";
+import pushUpdateHandler from "./api/orders/sweet-street-buddy/push-update.js";
+import orderByIdHandler from "./api/orders/[id]/index.js";
+import orderBumpHandler from "./api/orders/[id]/bump.js";
+import orderStatusHandler from "./api/orders/[id]/status.js";
+import menuItemsHandler from "./api/menu-items.js";
+import menuItemByIdHandler from "./api/menu-items/[id].js";
+import modifiersHandler from "./api/modifiers.js";
+import reviewsAllHandler from "./api/reviews/all.js";
+import reviewsHandler from "./api/reviews.js";
+import rewardsHandler from "./api/rewards.js";
+import settingsHandler from "./api/settings.js";
+import favoritesHandler from "./api/favorites.js";
+import pointsByUserHandler from "./api/points/[userId].js";
+import feedbackHandler from "./api/feedback.js";
+import liveCartsHandler from "./api/live-carts.js";
+import visitorsHeartbeatHandler from "./api/visitors/heartbeat.js";
+import visitorsCountHandler from "./api/visitors/count.js";
+import paymentsConfigHandler from "./api/payments/config.js";
+import paymentsProcessHandler from "./api/payments/process.js";
+import discountCodesValidateHandler from "./api/discount-codes/validate.js";
+import posCategoryByIdHandler from "./api/pos/categories/[id].js";
+import posCategoriesHandler from "./api/pos/categories.js";
+import posItemAssignmentsHandler from "./api/pos-item-assignments.js";
+import adminDailySummaryHandler from "./api/admin/daily-summary/send.js";
+
+const app = express();
+app.use(express.json());
+
+// Merges Express path params into req.query so handlers can use req.query.id
+// the same way they do on Vercel (where Vercel injects dynamic segments into query).
+function adapt(
+  handler: (req: VercelRequest, res: VercelResponse) => unknown,
+  paramKeys: string[] = [],
+) {
+  return (req: Request, res: Response) => {
+    for (const key of paramKeys) {
+      if (req.params[key] !== undefined) {
+        (req.query as Record<string, string>)[key] = req.params[key];
+      }
+    }
+    return handler(req as unknown as VercelRequest, res as unknown as VercelResponse);
+  };
+}
+
+// Orders — specific paths before dynamic :id
+app.all("/api/orders/stats", adapt(orderStatsHandler));
+app.all("/api/orders/sweet-street-buddy/auto-bump", adapt(autoBumpHandler));
+app.all("/api/orders/sweet-street-buddy/daily-special", adapt(dailySpecialHandler));
+app.all("/api/orders/sweet-street-buddy/low-performer-alerts", adapt(lowPerformerAlertsHandler));
+app.all("/api/orders/sweet-street-buddy/push-update", adapt(pushUpdateHandler));
+app.all("/api/orders/:id/bump", adapt(orderBumpHandler, ["id"]));
+app.all("/api/orders/:id/status", adapt(orderStatusHandler, ["id"]));
+app.all("/api/orders/:id", adapt(orderByIdHandler, ["id"]));
+app.all("/api/orders", adapt(ordersHandler));
+
+// Menu
+app.all("/api/menu-items/:id", adapt(menuItemByIdHandler, ["id"]));
+app.all("/api/menu-items", adapt(menuItemsHandler));
+app.all("/api/modifiers", adapt(modifiersHandler));
+
+// Reviews
+app.all("/api/reviews/all", adapt(reviewsAllHandler));
+app.all("/api/reviews", adapt(reviewsHandler));
+
+// Misc
+app.all("/api/rewards", adapt(rewardsHandler));
+app.all("/api/settings", adapt(settingsHandler));
+app.all("/api/favorites", adapt(favoritesHandler));
+app.all("/api/points/:userId", adapt(pointsByUserHandler, ["userId"]));
+app.all("/api/feedback", adapt(feedbackHandler));
+app.all("/api/live-carts", adapt(liveCartsHandler));
+
+// Visitors
+app.all("/api/visitors/heartbeat", adapt(visitorsHeartbeatHandler));
+app.all("/api/visitors/count", adapt(visitorsCountHandler));
+
+// Payments
+app.all("/api/payments/config", adapt(paymentsConfigHandler));
+app.all("/api/payments/process", adapt(paymentsProcessHandler));
+
+// Discount codes
+app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));
+
+// POS — specific paths before dynamic :id
+app.all("/api/pos/categories/:id", adapt(posCategoryByIdHandler, ["id"]));
+app.all("/api/pos/categories", adapt(posCategoriesHandler));
+app.all("/api/pos-item-assignments", adapt(posItemAssignmentsHandler));
+
+// Admin
+app.all("/api/admin/daily-summary/send", adapt(adminDailySummaryHandler));
+
+// Health check
+app.get("/health", (_req, res) => res.json({ ok: true }));
+
+const PORT = Number(process.env.PORT ?? 10000);
+app.listen(PORT, () => {
+  console.log(`API server listening on port ${PORT}`);
+});

@@ -1,0 +1,735 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-primary-border: var(--sidebar-primary-border);
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-accent-border: var(--sidebar-accent-border);
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* LIGHT MODE */
+:root {
+  --button-outline: rgba(0,0,0, .10);
+  --badge-outline: rgba(0,0,0, .05);
+
+  /* Automatic computation of border around primary / danger buttons */
+  --opaque-button-border-intensity: -8; /* In terms of percentages */
+
+  /* Backgrounds applied on top of other backgrounds when hovered/active */
+  --elevate-1: rgba(0,0,0, .03);
+  --elevate-2: rgba(0,0,0, .08);
+
+  --background: 345 55% 91%;   /* rosy-peachy pink */
+  --foreground: 345 45% 18%;   /* deep rose-brown */
+
+  --border: 345 30% 80%;       /* soft rose border */
+
+  --card: 340 50% 99%;
+  --card-foreground: 345 45% 18%;
+  --card-border: 345 30% 80%;
+
+  --sidebar: 345 40% 94%;
+  --sidebar-foreground: 345 45% 18%;
+  --sidebar-border: 345 30% 80%;
+  --sidebar-primary: 5 76% 54%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 345 45% 90%;
+  --sidebar-accent-foreground: 345 45% 18%;
+  --sidebar-ring: 5 76% 54%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 345 45% 18%;
+  --popover-border: 345 30% 80%;
+
+  /* Color-override CSS variables (set by use-color-overrides hook) */
+  --ss-primary-h:  5;
+  --ss-android-h:  22;
+  --ss-ios-orb1-h: 275;
+  --ss-ios-orb2-h: 325;
+  --ss-ios-orb3-h: 6;
+  --ss-ios-orb4-h: 348;
+  --ss-ios-orb5-h: 18;
+  --ss-ios-base-h: 305;
+
+  --primary: 5 76% 54%;        /* coral-pink — vibrant, inviting */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 345 45% 90%;    /* soft rose */
+  --secondary-foreground: 345 35% 28%;
+
+  --muted: 345 38% 87%;        /* medium rose muted */
+  --muted-foreground: 345 35% 36%;  /* darker for icon visibility */
+
+  --accent: 340 55% 88%;       /* soft pink accent */
+  --accent-foreground: 345 45% 18%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+
+  --input: 345 30% 80%;
+  --ring: 5 76% 54%;           /* coral-pink ring */
+  --chart-1: 14 78% 52%;
+  --chart-2: 35 70% 58%;
+  --chart-3: 160 55% 45%;
+  --chart-4: 262 52% 58%;
+  --chart-5: 45 90% 55%;
+
+  --app-font-sans: 'Outfit', 'Inter', sans-serif;
+  --app-font-serif: 'Playfair Display', Georgia, serif;
+  --app-font-mono: Menlo, monospace;
+  --radius: 1rem;
+  --shadow-2xs: 0px 1px 3px 0px rgba(180,60,60,0.07);
+  --shadow-xs: 0px 1px 3px 0px rgba(180,60,60,0.08);
+  --shadow-sm: 0px 2px 6px 0px rgba(180,60,60,0.10), 0px 1px 2px -1px rgba(180,60,60,0.06);
+  --shadow: 0px 4px 10px 0px rgba(180,60,60,0.10), 0px 2px 4px -1px rgba(180,60,60,0.07);
+  --shadow-md: 0px 6px 16px -2px rgba(180,60,60,0.12), 0px 3px 6px -2px rgba(180,60,60,0.08);
+  --shadow-lg: 0px 12px 28px -4px rgba(180,60,60,0.13), 0px 6px 10px -4px rgba(180,60,60,0.08);
+  --shadow-xl: 0px 24px 40px -6px rgba(180,60,60,0.14), 0px 10px 16px -6px rgba(180,60,60,0.08);
+  --shadow-2xl: 0px 32px 60px -12px rgba(180,60,60,0.20);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+  /* Automatically computed borders - intensity can be controlled by the user by the --opaque-button-border-intensity setting */
+
+  /* Fallback for older browsers */
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --primary-border: hsl(var(--primary));
+  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --secondary-border: hsl(var(--secondary));
+  --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --muted-border: hsl(var(--muted));
+  --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --accent-border: hsl(var(--accent));
+  --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Fallback for older browsers */
+  --destructive-border: hsl(var(--destructive));
+  --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+}
+
+.dark {
+  --button-outline: rgba(255,255,255, .10);
+  --badge-outline: rgba(255,255,255, .05);
+
+  --opaque-button-border-intensity: 9;  /* In terms of percentages */
+
+  /* Backgrounds applied on top of other backgrounds when hovered/active */
+  --elevate-1: rgba(255,255,255, .04);
+  --elevate-2: rgba(255,255,255, .09);
+
+  --background: 345 50% 10%;
+  --foreground: 51 100% 95%;
+
+  --border: 345 30% 25%;
+
+  --card: 345 50% 15%;
+  --card-foreground: 51 100% 95%;
+  --card-border: 345 30% 25%;
+
+  --sidebar: 345 50% 15%;
+  --sidebar-foreground: 51 100% 95%;
+  --sidebar-border: 345 30% 25%;
+  --sidebar-primary: 345 80% 40%;
+  --sidebar-primary-foreground: 51 100% 95%;
+  --sidebar-accent: 345 50% 20%;
+  --sidebar-accent-foreground: 51 100% 95%;
+  --sidebar-ring: 345 80% 40%;
+
+  --popover: 345 50% 15%;
+  --popover-foreground: 51 100% 95%;
+  --popover-border: 345 30% 25%;
+
+  --primary: 345 80% 40%;
+  --primary-foreground: 51 100% 95%;
+
+  --secondary: 214 40% 40%;
+  --secondary-foreground: 51 100% 95%;
+
+  --muted: 345 30% 20%;
+  --muted-foreground: 345 20% 70%;
+
+  --accent: 214 40% 40%;
+  --accent-foreground: 51 100% 95%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+
+  --input: 345 30% 25%;
+  --ring: 345 80% 40%;
+  --chart-1: 345 80% 40%;
+  --chart-2: 214 40% 40%;
+  --chart-3: 51 60% 40%;
+  --chart-4: 160 40% 40%;
+  --chart-5: 280 40% 40%;
+
+  --shadow-2xs: 0px 2px 0px 0px hsl(345 50% 5% / 0.5);
+  --shadow-xs: 0px 2px 0px 0px hsl(345 50% 5% / 0.5);
+  --shadow-sm: 0px 2px 0px 0px hsl(345 50% 5% / 0.5), 0px 1px 2px -1px hsl(345 50% 5% / 0.5);
+  --shadow: 0px 2px 0px 0px hsl(345 50% 5% / 0.5), 0px 1px 2px -1px hsl(345 50% 5% / 0.5);
+  --shadow-md: 0px 2px 0px 0px hsl(345 50% 5% / 0.5), 0px 2px 4px -1px hsl(345 50% 5% / 0.5);
+  --shadow-lg: 0px 2px 0px 0px hsl(345 50% 5% / 0.5), 0px 4px 6px -1px hsl(345 50% 5% / 0.5);
+  --shadow-xl: 0px 2px 0px 0px hsl(345 50% 5% / 0.5), 0px 8px 10px -1px hsl(345 50% 5% / 0.5);
+  --shadow-2xl: 0px 2px 0px 0px hsl(345 50% 5% / 0.5);
+
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Gradient on html (not body) so backdrop-filter on any child always has something colorful to blur.
+       background-attachment:fixed on html works on iOS Safari unlike body. */
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(ellipse 80% 55% at 4% -4%, hsl(345 80% 78% / 0.92) 0%, transparent 52%),
+      radial-gradient(ellipse 70% 70% at 94% 100%, hsl(8 82% 80% / 0.82) 0%, transparent 52%),
+      radial-gradient(ellipse 55% 45% at 52% 52%, hsl(28 88% 86% / 0.55) 0%, transparent 62%);
+    background-attachment: fixed;
+  }
+
+  body {
+    @apply font-sans antialiased text-foreground;
+    /* Transparent so html's gradient shows through */
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(345 25% 74%);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(345 25% 58%);
+  }
+
+  /* Smooth card transitions globally */
+  .card-hover {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     iOS — True frosted glass
+     Root div has class="isolate" (no bg-background).
+     A fixed vivid-gradient div (z-index:-1) is rendered as its first
+     child. Because isolate creates a stacking context, that div sits
+     behind all sibling content but in front of the transparent root.
+     Cards with backdrop-filter blur the vivid gradient beneath them.
+  ══════════════════════════════════════════════════════════════ */
+
+  /* Cards: milky frosted glass — enough white to look frosted, thin enough
+     to show the colourful blobs behind. The saturate() and brightness()
+     filters make the blurred background colours pop through the milk. */
+  .platform-ios .bg-card {
+    background-color: rgba(255, 255, 255, 0.28) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(180%) brightness(1.06) !important;
+    backdrop-filter: blur(40px) saturate(180%) brightness(1.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.65) !important;
+    box-shadow:
+      0 2px 20px -4px rgba(60, 0, 100, 0.18),
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.90),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.20) !important;
+    color: hsl(0 0% 8%) !important;
+  }
+
+  /* Gradient card headers: keep them fully opaque and vivid */
+  .platform-ios .bg-gradient-to-br {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: initial !important;
+    border-color: initial !important;
+    box-shadow: none !important;
+  }
+
+  /* Header: milky frosted strip — colour blobs clearly visible behind it */
+  .platform-ios header {
+    background-color: rgba(255, 255, 255, 0.30) !important;
+    -webkit-backdrop-filter: blur(48px) saturate(180%) brightness(1.06) !important;
+    backdrop-filter: blur(48px) saturate(180%) brightness(1.06) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.50) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.30) !important;
+  }
+
+  /* Readable text over vivid colours */
+  .platform-ios .text-foreground {
+    color: hsl(0 0% 8%) !important;
+  }
+  .platform-ios .text-muted-foreground {
+    color: hsl(0 0% 30%) !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     Android — Material You (Peach / Coral edition)
+     - Poppy peach-coral surfaces, high saturation
+     - Solid (no blur) — completely different from iOS glass
+     - 16 dp corner radius throughout
+     - Google-style motion: Material emphasized easing, elevation on hover
+  ══════════════════════════════════════════════════════════════ */
+
+  /* Warm peachy page background — hue from CSS variable, defaulting to 22 (peach) */
+  .platform-android {
+    background-color: hsl(var(--ss-android-h, 22) 55% 95%) !important;
+  }
+
+  /* Cards: poppy peach tonal surface.
+     Entrance animation + swipe gesture handled by Framer Motion (SwipeDismissCard)
+     so NO CSS animation/transition/transform on this element — only colour + shadow. */
+  .platform-android .bg-card {
+    background-color: hsl(var(--ss-android-h, 22) 80% 88%) !important;
+    border: none !important;
+    border-radius: 16px !important;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.08),
+      0 6px 20px -4px rgba(180, 85, 30, 0.22) !important;
+    transition:
+      background-color 180ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 180ms cubic-bezier(0.2, 0, 0, 1) !important;
+  }
+
+  /* Hover: colour + shadow deepen; no transform (Framer Motion owns the transform) */
+  .platform-android .bg-card:hover {
+    background-color: hsl(var(--ss-android-h, 22) 84% 85%) !important;
+    box-shadow:
+      0 3px 8px rgba(0, 0, 0, 0.11),
+      0 14px 32px -6px rgba(180, 85, 30, 0.32) !important;
+  }
+
+  /* Material You top app bar — solid deep peach, zero blur */
+  .platform-android header {
+    background-color: hsl(var(--ss-android-h, 22) 72% 82%) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    border-bottom: 2px solid hsl(var(--ss-android-h, 22) 55% 75%) !important;
+    box-shadow: 0 2px 10px -2px rgba(180, 85, 30, 0.28) !important;
+    transition: background-color 200ms cubic-bezier(0.2, 0, 0, 1) !important;
+  }
+
+  /* Material You filled button — bold coral */
+  .platform-android .bg-primary {
+    background-color: hsl(var(--ss-android-h, 22) 82% 48%) !important;
+    transition:
+      background-color 150ms cubic-bezier(0.2, 0, 0, 1),
+      transform 100ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 150ms cubic-bezier(0.2, 0, 0, 1) !important;
+  }
+
+  /* Button press feedback — Material scale-down */
+  .platform-android .bg-primary:active {
+    transform: scale(0.96) !important;
+    background-color: hsl(var(--ss-android-h, 22) 78% 42%) !important;
+  }
+
+  /* Ghost / secondary buttons get smooth colour transitions too */
+  .platform-android button {
+    transition:
+      background-color 150ms cubic-bezier(0.2, 0, 0, 1),
+      color 150ms cubic-bezier(0.2, 0, 0, 1),
+      transform 100ms cubic-bezier(0.2, 0, 0, 1) !important;
+  }
+  .platform-android button:active:not(:disabled) {
+    transform: scale(0.97) !important;
+  }
+
+  /* Respect user's reduced-motion preference globally.
+     Disables long Tailwind/animate-css infinite loops and CSS keyframes
+     while preserving instant state changes. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* android-rise @keyframes removed — entrance animation is now handled
+   by Framer Motion spring physics in SwipeDismissCard (home.tsx). */
+
+/**
+ * Using the elevate system.
+ * Automatic contrast adjustment.
+ *
+ * <element className="hover-elevate" />
+ * <element className="active-elevate-2" />
+ *
+ * // Using the tailwind utility when a data attribute is "on"
+ * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
+ * // Or manually controlling the toggle state
+ * <element className="toggle-elevate toggle-elevated" />
+ *
+ * Elevation systems have to handle many states.
+ * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
+ * - toggled or not
+ * - focused or not (this is not handled with these utilities)
+ *
+ * Even without handling focused or not, this is six possible combinations that
+ * need to be distinguished from eachother visually.
+ */
+@layer utilities {
+
+  /* Hide ugly search cancel button in Chrome until we can style it properly */
+  input[type="search"]::-webkit-search-cancel-button {
+    @apply hidden;
+  }
+
+  /* Placeholder styling for contentEditable div */
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+
+  /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
+   * buttons/badges can remove the automatic brightness adjustment on interactions
+   * and program their own. */
+  .no-default-hover-elevate {}
+
+  .no-default-active-elevate {}
+
+
+  /**
+   * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
+   * This way they can stack/compound. Both will overlap the parent's borders!
+   * So borders will be automatically adjusted both on toggle, and hover/active,
+   * and they will be compounded.
+   */
+  .toggle-elevate::before,
+  .toggle-elevate-2::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    /*border-radius: inherit;   match rounded corners */
+    border-radius: inherit;
+    z-index: -1;
+    /* sits behind content but above backdrop */
+  }
+
+  .toggle-elevate.toggle-elevated::before {
+    background-color: var(--elevate-2);
+  }
+
+  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
+  .border.toggle-elevate::before {
+    inset: -1px;
+  }
+
+  /* Does not work on elements with overflow:hidden! */
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    /*border-radius: inherit;   match rounded corners */
+    border-radius: inherit;
+    z-index: 999;
+    /* sits in front of content */
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-2);
+  }
+
+  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
+    inset: -1px;
+  }
+}
+
+/* ============================================================
+   Liquid Cup Loader — realistic, GPU-only animations.
+   Two SVG wave paths translated horizontally produce a smooth
+   continuous liquid surface (parallax). Bubbles, fizz and the
+   straw use pure transforms for a buttery 60fps loop.
+   ============================================================ */
+@keyframes liquid-wave-back {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(60px, 0, 0); }
+}
+@keyframes liquid-wave-front-loop {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-60px, 0, 0); }
+}
+@keyframes liquid-bubble-rise {
+  0%   { transform: translate3d(0, 0, 0)     scale(0.6); opacity: 0; }
+  15%  { opacity: 1; }
+  60%  { transform: translate3d(2px, -42px, 0) scale(1);  opacity: 0.9; }
+  100% { transform: translate3d(-1px, -78px, 0) scale(1.05); opacity: 0; }
+}
+@keyframes liquid-fizz {
+  0%   { transform: translate3d(0, 0, 0);   opacity: 0; }
+  20%  { opacity: 0.85; }
+  100% { transform: translate3d(0, -14px, 0); opacity: 0; }
+}
+@keyframes liquid-straw-wobble {
+  0%, 100% { transform: rotate(-3deg); }
+  50%      { transform: rotate(3deg); }
+}
+@keyframes liquid-meniscus {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -2px, 0); }
+}
+@keyframes liquid-msg-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+@keyframes liquid-cup-bob {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-0.6deg); }
+  50%      { transform: translate3d(0, -3px, 0) rotate(0.6deg); }
+}
+@keyframes liquid-cup-shimmer {
+  0%   { transform: translate3d(-130%, 0, 0) skewX(-22deg); opacity: 0; }
+  18%  { opacity: 0.55; }
+  100% { transform: translate3d(180%, 0, 0) skewX(-22deg); opacity: 0; }
+}
+@keyframes liquid-cup-shadow {
+  0%, 100% { transform: scaleX(0.78); opacity: 0.32; filter: blur(4px); }
+  50%      { transform: scaleX(1);    opacity: 0.18; filter: blur(6px); }
+}
+
+.liquid-cup-wrap {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+}
+.liquid-cup-wrap::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 70%;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, hsl(14 60% 30% / 0.45), transparent 70%);
+  transform: translateX(-50%) scaleX(0.85);
+  transform-origin: center;
+  z-index: -1;
+  animation: liquid-cup-shadow 3.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+.liquid-cup-shimmer {
+  position: absolute;
+  inset: 12% 18% 30% 18%;
+  border-radius: 14px;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse at center, #000 60%, transparent 100%);
+}
+.liquid-cup-shimmer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.65) 50%, transparent 65%);
+  width: 60%;
+  height: 100%;
+  transform: translateX(-130%) skewX(-22deg);
+  animation: liquid-cup-shimmer 4.2s ease-in-out infinite;
+  animation-delay: 1.4s;
+  will-change: transform, opacity;
+}
+
+.liquid-cup,
+.liquid-cup-mini {
+  /* Promote the entire SVG to its own layer so children animate cheaply */
+  transform: translateZ(0);
+  animation: liquid-cup-bob 3.6s ease-in-out infinite;
+  transform-origin: 50% 100%;
+  will-change: transform;
+  filter: drop-shadow(0 6px 10px hsl(14 60% 28% / 0.18));
+}
+.liquid-cup-mini { animation-duration: 2.6s; filter: drop-shadow(0 2px 3px hsl(14 60% 28% / 0.18)); }
+.liquid-wave {
+  will-change: transform;
+  transform-box: fill-box;
+}
+.liquid-wave--back {
+  animation: liquid-wave-back 4.2s linear infinite;
+}
+.liquid-wave--front {
+  animation: liquid-wave-front-loop 2.8s linear infinite reverse;
+}
+.liquid-bubble {
+  will-change: transform, opacity;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: liquid-bubble-rise 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.liquid-fizz {
+  will-change: transform, opacity;
+  transform-box: fill-box;
+  animation: liquid-fizz 1.9s ease-out infinite;
+}
+.liquid-straw {
+  will-change: transform;
+  transform-box: fill-box;
+  transform-origin: 50% 92%;
+  animation: liquid-straw-wobble 3.2s ease-in-out infinite;
+}
+.liquid-meniscus {
+  will-change: transform;
+  transform-box: fill-box;
+  animation: liquid-meniscus 2.6s ease-in-out infinite;
+}
+.liquid-loader-msg {
+  animation: liquid-msg-pulse 1.9s ease-in-out infinite;
+  will-change: opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-wave,
+  .liquid-bubble,
+  .liquid-fizz,
+  .liquid-straw,
+  .liquid-meniscus,
+  .liquid-loader-msg,
+  .liquid-cup,
+  .liquid-cup-mini,
+  .liquid-cup-wrap::after,
+  .liquid-cup-shimmer::before {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   Polished pop-up / dialog animations.
+   Springy scale + lift + soft blur on enter; gentle settle on exit.
+   ============================================================ */
+@keyframes dialog-pop-in {
+  0%   { opacity: 0; transform: translate(-50%, -42%) scale(0.86); filter: blur(6px); }
+  60%  { opacity: 1; transform: translate(-50%, -51%) scale(1.015); filter: blur(0); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1);     filter: blur(0); }
+}
+@keyframes dialog-pop-out {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -46%) scale(0.94); }
+}
+.animate-dialog-pop {
+  animation: dialog-pop-in 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform, opacity, filter;
+}
+.animate-dialog-pop-out {
+  animation: dialog-pop-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Sheet / dropdown / popover micro-polish: a slight settle */
+@keyframes pop-rise {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.animate-pop-rise {
+  animation: pop-rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dialog-pop,
+  .animate-dialog-pop-out,
+  .animate-pop-rise {
+    animation-duration: 1ms !important;
+    animation-timing-function: linear !important;
+  }
+}

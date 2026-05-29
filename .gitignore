@@ -1,0 +1,59 @@
+# Node modules
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# Dependency locks
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+out/
+
+# Vite / tooling
+.cache
+.vite
+
+# Environment files (local secrets)
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel/
+.vercel/output/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.sql
+*.sqlite
+storybook-static/
+*.zip
+.replit-artifact/
+
+# Ignore local environment file examples (keep example in repo if present)
+.env.local.example
+.vercel
+.env*
