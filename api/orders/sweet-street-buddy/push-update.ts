@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { setCors, requireOwner, err } from "../../../_utils";
+import { setCors, requireOwner, err } from "../../_utils";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
