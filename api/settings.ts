@@ -103,7 +103,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const end = parseTime((data.happy_hour_end as string) ?? "17:00");
     const isHappyHour = !!(data.happy_hour_enabled && hour >= start && hour < end);
 
-    return res.json({ ...client, isHappyHour });
+    // SHOP LOCKED — override isOpen until manually re-opened via dashboard
+    return res.json({ ...client, isOpen: false, isHappyHour: false });
   }
 
   if (req.method === "PATCH") {
