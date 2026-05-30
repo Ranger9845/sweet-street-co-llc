@@ -417,8 +417,7 @@ export default function Checkout() {
   const onSubmit = async (data: CheckoutForm) => {
     if (items.length === 0) return;
 
-    if (isClosed && (!scheduleEnabled || !scheduledFor)) {
-      alert("We're currently closed. Please use 'Schedule for Later' to place a future order.");
+    if (isClosed) {
       return;
     }
 
@@ -593,13 +592,13 @@ export default function Checkout() {
           <p className="text-sm text-muted-foreground -mt-1">Almost there — just a few details and your order is on its way.</p>
 
           {isClosed && (
-            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-800">
-              <CalendarClock className="h-5 w-5 flex-shrink-0 text-amber-500" />
+            <div className="flex flex-col items-center gap-4 bg-red-50 border-2 border-red-200 rounded-2xl px-6 py-8 text-center">
+              <span className="text-4xl">🔒</span>
               <div>
-                <p className="text-sm font-medium font-semibold">
-                  {isSunday ? "We're closed on Sundays" : "We're currently closed"}
+                <p className="text-lg font-bold text-red-800">
+                  {isSunday ? "We're closed on Sundays" : "We're not taking orders right now"}
                 </p>
-                <p className="text-sm">You can still place a scheduled order for when we're next open — use "Schedule for Later" below.</p>
+                <p className="text-sm text-red-700 mt-1">Orders are temporarily paused. Check back soon!</p>
               </div>
             </div>
           )}
@@ -1070,7 +1069,7 @@ export default function Checkout() {
                   type="submit"
                   form="checkout-form"
                   className="w-full rounded-full py-6 text-base font-bold shadow-lg hover:shadow-xl transition-all bg-gradient-to-r from-[hsl(5,76%,54%)] to-[hsl(345,65%,62%)] hover:from-[hsl(5,76%,48%)] hover:to-[hsl(345,65%,56%)] text-white border-0 disabled:opacity-60"
-                  disabled={isSubmitting || (paymentMethod === "card" && squareConfig?.configured && !squareReady)}
+                  disabled={isClosed || isSubmitting || (paymentMethod === "card" && squareConfig?.configured && !squareReady)}
                 >
                   <AnimatePresence mode="wait" initial={false}>
                     {isSubmitting ? (

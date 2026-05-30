@@ -60,6 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === "POST") {
+    // Hard block: reject all new orders while the shop is closed
+    const { data: shopSettings } = await sb.from("settings").select("is_open").eq("id", 1).maybeSingle();
+    if (shopSettings && shopSettings.is_open === false) {
+      return err(res, 503, "Shop is currently closed. No orders are being accepted.");
+    }
+
     const body = req.body?.data ?? req.body;
     const { items, ...fields } = body;
 
