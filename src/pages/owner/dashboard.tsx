@@ -3,6 +3,7 @@ import {
   useGetOrderStats, useListOrders, useBumpOrder, useUpdateOrderStatus,
   getListOrdersQueryKey, getGetOrderStatsQueryKey,
   useGetSettings, useUpdateSettings, getGetSettingsQueryKey,
+  setExtraHeaders,
 } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1266,6 +1267,12 @@ export default function Dashboard() {
   const { password } = useOwnerAuth();
   const liveCarts = useLiveCarts(password);
   useOrderEvents();
+
+  // Sync owner password into the shared API client so useBumpOrder /
+  // useUpdateOrderStatus include x-owner-password on every request.
+  useEffect(() => {
+    setExtraHeaders(password ? { "x-owner-password": password } : {});
+  }, [password]);
 
   const { data: stats, isLoading: statsLoading } = useGetOrderStats({
     query: { queryKey: getGetOrderStatsQueryKey(), refetchInterval: 5000, refetchIntervalInBackground: true }
