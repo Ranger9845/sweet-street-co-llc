@@ -117,7 +117,7 @@ function OrderCard({ order }: { order: Order }) {
       </CardHeader>
       <CardContent className="pl-6 space-y-3">
         <div className="space-y-1.5">
-          {order.items.map((item, idx) => (
+          {(order.items ?? []).map((item, idx) => (
             <div key={idx} className="flex justify-between items-start text-sm">
               <div className="flex-1 min-w-0">
                 <span className="font-medium">

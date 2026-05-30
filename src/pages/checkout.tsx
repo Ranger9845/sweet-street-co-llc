@@ -802,10 +802,10 @@ export default function Checkout() {
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {reward.discountType === "percent"
-                              ? `${reward.discountValue}% off your order`
+                              ? `${reward.discountValue ?? 0}% off your order`
                               : reward.discountType === "free_item"
                                 ? "Free highest-priced drink"
-                                : `$${reward.discountValue.toFixed(2)} off`}
+                                : `$${(reward.discountValue ?? 0).toFixed(2)} off`}
                           </p>
                         </button>
                       );
@@ -1163,7 +1163,7 @@ export default function Checkout() {
                 ) : celebrationReward.discountType === "free_item" ? (
                   <span className="text-blue-500 font-normal">· free item!</span>
                 ) : (
-                  <span className="text-blue-500 font-normal">· saves ${celebrationReward.discountValue.toFixed(2)}</span>
+                  <span className="text-blue-500 font-normal">· saves ${(celebrationReward.discountValue ?? 0).toFixed(2)}</span>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-6 italic">Tap anywhere to continue</p>

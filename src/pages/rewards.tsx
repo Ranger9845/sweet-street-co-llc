@@ -134,10 +134,10 @@ export default function Rewards() {
                     <CardContent className="flex-1 pb-2">
                       <Badge variant="outline" className="text-xs">
                         {r.discountType === "percent"
-                          ? `${r.discountValue}% off`
+                          ? `${r.discountValue ?? 0}% off`
                           : r.discountType === "free_item"
                             ? "Free item"
-                            : `$${r.discountValue.toFixed(2)} off`}
+                            : `$${(r.discountValue ?? 0).toFixed(2)} off`}
                       </Badge>
                     </CardContent>
                     <div className="p-4 pt-0 relative overflow-hidden">
