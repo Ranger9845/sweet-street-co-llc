@@ -3,6 +3,7 @@ import {
   useGetOrderStats, useListOrders, useBumpOrder, useUpdateOrderStatus,
   getListOrdersQueryKey, getGetOrderStatsQueryKey,
   useGetSettings, useUpdateSettings, getGetSettingsQueryKey,
+  setExtraHeaders,
 } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -846,7 +847,7 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
   const displayNotes = isSquare ? null : order.notes;
   const menuItemMap = new Map((order.menuItems ?? []).map((m: any) => [m.id, m]));
   const hasRecipe = (order.menuItems ?? []).length > 0 &&
-    order.items.some((i: any) => menuItemMap.has(i.menuItemId));
+    (order.items ?? []).some((i: any) => menuItemMap.has(i.menuItemId));
 
   const stripeColor = variant === "ready" ? "bg-emerald-500" : variant === "preparing" ? "bg-blue-500" : "bg-amber-400";
 
@@ -918,7 +919,7 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
 
           {/* Items */}
           <div className="space-y-1 mb-2">
-            {order.items.map((item: any, idx: number) => (
+            {(order.items ?? []).map((item: any, idx: number) => (
               <div key={idx} className="text-xs">
                 <div className="flex items-baseline gap-1">
                   <span className="font-semibold text-slate-600 tabular-nums">{item.quantity}×</span>
@@ -943,7 +944,7 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
 
           {/* Total line */}
           <div className="flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-1 mb-2">
-            <span>{order.items.length} item{order.items.length !== 1 ? "s" : ""}</span>
+            <span>{(order.items ?? []).length} item{(order.items ?? []).length !== 1 ? "s" : ""}</span>
             <span className="font-bold text-slate-700">${Number(order.totalAmount).toFixed(2)}</span>
           </div>
 
@@ -953,7 +954,7 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
               <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider flex items-center gap-1">
                 <ChefHat className="h-3 w-3" /> How to Make
               </p>
-              {order.items.map((item: any, idx: number) => {
+              {(order.items ?? []).map((item: any, idx: number) => {
                 const matched = menuItemMap.get(item.menuItemId) as any;
                 if (!matched) return null;
                 const ingredients = matched.ingredients ?? [];
@@ -1266,6 +1267,12 @@ export default function Dashboard() {
   const { password } = useOwnerAuth();
   const liveCarts = useLiveCarts(password);
   useOrderEvents();
+
+  // Sync owner password into the shared API client so useBumpOrder /
+  // useUpdateOrderStatus include x-owner-password on every request.
+  useEffect(() => {
+    setExtraHeaders(password ? { "x-owner-password": password } : {});
+  }, [password]);
 
   const { data: stats, isLoading: statsLoading } = useGetOrderStats({
     query: { queryKey: getGetOrderStatsQueryKey(), refetchInterval: 5000, refetchIntervalInBackground: true }
