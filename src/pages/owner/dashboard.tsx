@@ -1324,10 +1324,11 @@ export default function Dashboard() {
   const handleBump = (id: number, customerName: string) => {
     bumpOrder.mutate({ id }, {
       onSuccess: () => {
-        toast({ title: "Order Ready", description: `${customerName} was notified.` });
+        toast({ title: "Order advanced", description: `${customerName}'s order moved to next step.` });
         queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
-      }
+      },
+      onError: (e) => toast({ title: "Failed to update order", description: String(e), variant: "destructive" }),
     });
   };
   const handleMarkPickedUp = (id: number, customerName: string, wasPaid: boolean) => {
@@ -1336,7 +1337,8 @@ export default function Dashboard() {
         toast({ title: "Order complete", description: wasPaid ? `${customerName}'s order picked up.` : `${customerName} paid. Order complete.` });
         queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
-      }
+      },
+      onError: (e) => toast({ title: "Failed to update order", description: String(e), variant: "destructive" }),
     });
   };
   const handleUnbump = (id: number, customerName: string) => {
@@ -1345,7 +1347,8 @@ export default function Dashboard() {
         toast({ title: "Moved back to Pending", description: `#${id} — ${customerName}` });
         queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
-      }
+      },
+      onError: (e) => toast({ title: "Failed to update order", description: String(e), variant: "destructive" }),
     });
   };
 

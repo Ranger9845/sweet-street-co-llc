@@ -16,9 +16,13 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem("sweet_street_owner_auth");
     const storedPw = localStorage.getItem("sweet_street_owner_pw");
-    if (stored === "true") {
+    if (stored === "true" && storedPw) {
       setIsOwner(true);
-      if (storedPw) setPassword(storedPw);
+      setPassword(storedPw);
+    } else {
+      // Clear any incomplete session so owner is sent to login
+      localStorage.removeItem("sweet_street_owner_auth");
+      localStorage.removeItem("sweet_street_owner_pw");
     }
   }, []);
 
