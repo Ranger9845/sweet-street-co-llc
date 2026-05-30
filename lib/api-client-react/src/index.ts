@@ -13,6 +13,10 @@ export type MenuItem = {
   ingredients?: Array<{ name: string; amount: string }>;
   sizeIngredients?: Record<string, Array<{ name: string; amount: string }>>;
   sizePrepSteps?: Record<string, Array<{ stepNumber: number; instruction: string }>>;
+  posCategoryId?: string | null;
+  posSortOrder?: number;
+  posHidden?: boolean;
+  color?: string;
   [key: string]: unknown;
 };
 
@@ -21,6 +25,24 @@ export type PosCategory = {
   name: string;
   available?: boolean;
   items?: MenuItem[];
+  sortOrder?: number;
+  color?: string;
+  backgroundColor?: string;
+  emoji?: string;
+  [key: string]: unknown;
+};
+
+export type OrderItem = {
+  menuItemId?: number;
+  menuItemName?: string;
+  size?: string;
+  temperature?: string | null;
+  quantity?: number;
+  unitPrice?: number;
+  specialInstructions?: string | null;
+  modifiers?: Array<{ id: number; name: string; price: number }>;
+  lotusBase?: string | null;
+  milk?: string | null;
   [key: string]: unknown;
 };
 
@@ -34,10 +56,64 @@ export type OrderStats = {
 };
 
 export type Settings = {
+  id?: number;
   isOpen?: boolean;
   isSunday?: boolean;
+  manualOpen?: boolean;
+  openMode?: string;
+  shopName?: string;
+  siteDescription?: string;
+  readyMessage?: string;
+  ownerPassword?: string;
+  announcementEnabled?: boolean;
+  announcementText?: string;
+  happyHourEnabled?: boolean;
+  happyHourStart?: string;
+  happyHourEnd?: string;
   happyHourDiscountType?: string;
   happyHourDiscountValue?: number | string;
+  isHappyHour?: boolean;
+  minutesUntilHappyHourEnd?: number | null;
+  todayHours?: string;
+  nextOpenLabel?: string;
+  closingSoon?: boolean;
+  minutesUntilClose?: number;
+  posAccentColor?: string;
+  posBgColor?: string;
+  posCardColor?: string;
+  posForegroundColor?: string;
+  posMutedColor?: string;
+  posBorderColor?: string;
+  posHeaderText?: string;
+  posButtonRadius?: string;
+  devNotificationEnabled?: boolean;
+  devNotificationTitle?: string;
+  devNotificationBody?: string;
+  devNotificationMaxShows?: number;
+  devNotificationVersion?: string;
+  devNotificationCtaLabel?: string;
+  devNotificationCtaUrl?: string;
+  [key: string]: unknown;
+};
+
+export type Order = {
+  id: number;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string | null;
+  customerSmsConsent?: boolean;
+  notes?: string | null;
+  discountCode?: string | null;
+  discountAmount?: number;
+  totalAmount?: number;
+  status?: string;
+  source?: string;
+  clerkUserId?: string | null;
+  scheduledFor?: string | null;
+  paidAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  items?: OrderItem[];
   [key: string]: unknown;
 };
 
@@ -78,17 +154,29 @@ async function fetchJson<T>(url: string, init: RequestInit = {}): Promise<T> {
 
 const queryKey = (name: string, params?: Record<string, unknown>) => [name, params] as const;
 
+// Optional extra query options accepted by hooks (passed as second arg `{ query: {...} }`)
+type QueryOverrides = {
+  enabled?: boolean;
+  refetchInterval?: number | false;
+  refetchIntervalInBackground?: boolean;
+  staleTime?: number;
+  queryKey?: readonly unknown[];
+  [key: string]: unknown;
+};
+type HookOptions = { query?: QueryOverrides };
+
 export const getListMenuItemsQueryKey = (params?: Record<string, unknown>) => queryKey("listMenuItems", params);
 export const getListOrdersQueryKey = (params?: Record<string, unknown>) => queryKey("listOrders", params);
 export const getListPosCategoriesQueryKey = (params?: Record<string, unknown>) => queryKey("listPosCategories", params);
-export const getGetOrderQueryKey = (params: { id: number | string }) => queryKey("getOrder", params);
+export const getGetOrderQueryKey = (id?: number | string) => queryKey("getOrder", { id });
 export const getGetOrderStatsQueryKey = () => queryKey("getOrderStats");
 export const getGetSettingsQueryKey = () => queryKey("getSettings");
 
-export function useListMenuItems(params?: Record<string, unknown>) {
+export function useListMenuItems(params?: Record<string, unknown>, options?: HookOptions) {
   return useQuery({
     queryKey: getListMenuItemsQueryKey(params),
     queryFn: () => fetchJson<MenuItem[]>(`/api/menu-items${buildQueryString(params)}`),
+    ...options?.query,
   });
 }
 
@@ -99,51 +187,55 @@ export function useListModifiers() {
   });
 }
 
-export function useGetSettings() {
+export function useGetSettings(options?: HookOptions) {
   return useQuery({
     queryKey: getGetSettingsQueryKey(),
     queryFn: () => fetchJson<Settings>("/api/settings"),
+    ...options?.query,
   });
 }
 
-export function useGetOrderStats() {
+export function useGetOrderStats(options?: HookOptions) {
   return useQuery({
     queryKey: getGetOrderStatsQueryKey(),
     queryFn: () => fetchJson<OrderStats>("/api/orders/stats"),
+    ...options?.query,
   });
 }
 
-export function useListOrders(params?: Record<string, unknown>) {
+export function useListOrders(params?: Record<string, unknown>, options?: HookOptions) {
   return useQuery({
     queryKey: getListOrdersQueryKey(params),
-    queryFn: () => fetchJson<any[]>(`/api/orders${buildQueryString(params)}`),
+    queryFn: () => fetchJson<Order[]>(`/api/orders${buildQueryString(params)}`),
+    ...options?.query,
   });
 }
 
-export function useGetOrder(id: number | string | undefined) {
+export function useGetOrder(id: number | string | undefined, options?: HookOptions) {
   return useQuery({
-    queryKey: getGetOrderQueryKey({ id }),
-    queryFn: () => fetchJson<any>(`/api/orders/${id}`),
+    queryKey: getGetOrderQueryKey(id),
+    queryFn: () => fetchJson<Order>(`/api/orders/${id}`),
     enabled: id !== undefined && id !== null,
+    ...options?.query,
   });
 }
 
 export function useCreateOrder() {
   return useMutation({
-    mutationFn: (body: unknown) => fetchJson("/api/orders", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body: unknown) => fetchJson<Order>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
   });
 }
 
 export function useCreateMenuItem() {
   return useMutation({
-    mutationFn: (body: unknown) => fetchJson("/api/menu-items", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body: unknown) => fetchJson<MenuItem>("/api/menu-items", { method: "POST", body: JSON.stringify(body) }),
   });
 }
 
 export function useUpdateMenuItem() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: number | string; [key: string]: unknown }) =>
-      fetchJson(`/api/menu-items/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+      fetchJson<MenuItem>(`/api/menu-items/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   });
 }
 
@@ -155,14 +247,14 @@ export function useDeleteMenuItem() {
 
 export function useCreatePosCategory() {
   return useMutation({
-    mutationFn: (body: unknown) => fetchJson("/api/pos/categories", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body: unknown) => fetchJson<PosCategory>("/api/pos/categories", { method: "POST", body: JSON.stringify(body) }),
   });
 }
 
 export function useUpdatePosCategory() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: number | string; [key: string]: unknown }) =>
-      fetchJson(`/api/pos/categories/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+      fetchJson<PosCategory>(`/api/pos/categories/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   });
 }
 
@@ -194,13 +286,14 @@ export function useUpdateOrderStatus() {
 
 export function useUpdateSettings() {
   return useMutation({
-    mutationFn: (body: unknown) => fetchJson("/api/settings", { method: "PATCH", body: JSON.stringify(body) }),
+    mutationFn: (body: unknown) => fetchJson<Settings>("/api/settings", { method: "PATCH", body: JSON.stringify(body) }),
   });
 }
 
-export function useListPosCategories() {
+export function useListPosCategories(options?: HookOptions) {
   return useQuery({
     queryKey: getListPosCategoriesQueryKey(),
     queryFn: () => fetchJson<PosCategory[]>("/api/pos/categories"),
+    ...options?.query,
   });
 }

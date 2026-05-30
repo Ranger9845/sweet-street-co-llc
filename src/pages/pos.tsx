@@ -311,7 +311,7 @@ export default function POS() {
             return (
               <button
                 key={item.id}
-                onClick={() => addToCart({ id: item.id, name: item.name, price: item.price })}
+                onClick={() => addToCart({ id: item.id, name: item.name, price: item.price ?? 0 })}
                 disabled={processing}
                 className={`relative bg-white rounded-xl p-4 text-left shadow-sm border-2 transition-all duration-200 hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                   inCart ? "border-[#7c3d5e] bg-pink-50/50" : "border-transparent hover:border-pink-200"
@@ -323,7 +323,7 @@ export default function POS() {
                   </span>
                 )}
                 <p className="font-semibold text-gray-800 text-sm leading-tight">{item.name}</p>
-                <p className="text-[#7c3d5e] font-bold mt-2">${item.price.toFixed(2)}</p>
+                <p className="text-[#7c3d5e] font-bold mt-2">${(item.price ?? 0).toFixed(2)}</p>
               </button>
             );
           })}

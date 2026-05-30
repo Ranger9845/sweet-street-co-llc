@@ -163,9 +163,9 @@ export default function OrderStatus() {
     const prev = prevStatusRef.current;
     if (prev && prev !== "ready" && order.status === "ready") {
       playReadyChime();
-      sendBrowserNotification(order.customerName, order.id);
+      sendBrowserNotification(order.customerName ?? "", order.id);
     }
-    prevStatusRef.current = order.status;
+    prevStatusRef.current = order.status ?? null;
   }, [order?.status, order?.customerName, order?.id]);
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export default function OrderStatus() {
   const isWaiting = order.status === "pending" || order.status === "preparing";
   const isCompleted = order.status === "completed" || order.status === "ready";
   const statusLabel = order.status === "pending" ? "Received" : order.status === "preparing" ? "Preparing" : order.status === "ready" ? "Ready for Pickup" : order.status === "completed" ? "Completed" : "Unknown";
-  const readyMessage = settings?.readyMessage?.replace("{name}", order.customerName) ?? `${order.customerName}, your order is ready for pickup!`;
+  const readyMessage = settings?.readyMessage?.replace("{name}", order.customerName ?? "") ?? `${order.customerName ?? ""}, your order is ready for pickup!`;
 
   const subtotal = (order as any).subtotalAmount ?? (Number(order.totalAmount) + Number(order.discountAmount ?? 0));
   const taxAmount = (order as any).taxAmount ?? 0;
@@ -264,7 +264,7 @@ export default function OrderStatus() {
 
             {/* Status tracker */}
             {order.status !== "cancelled" && order.status !== "completed" && (
-              <StatusTracker status={order.status} />
+              <StatusTracker status={order.status ?? "pending"} />
             )}
 
             {/* Status message */}
@@ -320,7 +320,7 @@ export default function OrderStatus() {
 
             {/* Items */}
             <div className="space-y-2 mb-4">
-              {order.items.map((item, idx) => (
+              {(order.items ?? []).map((item, idx) => (
                 <div key={idx} className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-1.5">
@@ -335,7 +335,7 @@ export default function OrderStatus() {
                     )}
                   </div>
                   <span className="text-sm font-semibold text-slate-700 tabular-nums shrink-0">
-                    ${(item.unitPrice * item.quantity).toFixed(2)}
+                    ${((item.unitPrice ?? 0) * (item.quantity ?? 0)).toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -394,7 +394,7 @@ export default function OrderStatus() {
                 <MapPin className="h-3 w-3" />
                 <span>Sweet Street Co. · Meeker, OK</span>
               </div>
-              <span>{format(new Date(order.createdAt), "MMM d 'at' h:mm a")}</span>
+              <span>{order.createdAt ? format(new Date(order.createdAt), "MMM d 'at' h:mm a") : ""}</span>
             </div>
 
             {(order as any).source && (
@@ -426,7 +426,7 @@ export default function OrderStatus() {
           open={showReview}
           onClose={() => setShowReview(false)}
           orderId={order.id}
-          customerName={order.customerName}
+          customerName={order.customerName ?? ""}
         />
       )}
     </CustomerLayout>

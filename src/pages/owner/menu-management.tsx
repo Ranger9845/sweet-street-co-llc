@@ -221,7 +221,7 @@ export default function MenuManagement() {
 
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this item?")) {
-      deleteMenuItem.mutate({ id }, {
+      deleteMenuItem.mutate(id, {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListMenuItemsQueryKey() });
           toast({ title: "Item Deleted" });
@@ -274,7 +274,7 @@ export default function MenuManagement() {
                       {(() => {
                         const sp = (item as any).sizePrices || {};
                         const prices = [sp["16oz"], sp["24oz"], sp["34oz"]].filter((p: number) => p > 0);
-                        if (prices.length === 0) return `$${item.price.toFixed(2)}`;
+                        if (prices.length === 0) return `$${(item.price ?? 0).toFixed(2)}`;
                         const lo = Math.min(...prices);
                         const hi = Math.max(...prices);
                         return lo === hi ? `$${lo.toFixed(2)}` : `$${lo.toFixed(2)}–$${hi.toFixed(2)}`;
@@ -301,7 +301,7 @@ export default function MenuManagement() {
                         const counts = SIZES.map(s => `${s.replace("oz", "")}: ${sps[s]?.length || 0}`).join(" · ");
                         return <span>Prep steps — {counts}</span>;
                       }
-                      return <span>{item.prepSteps?.length || 0} prep steps defined</span>;
+                      return <span>{(item.prepSteps as unknown[] | undefined)?.length || 0} prep steps defined</span>;
                     })()}
                   </div>
                 </CardContent>
@@ -309,7 +309,7 @@ export default function MenuManagement() {
                   <div className="flex items-center space-x-2">
                     <Switch 
                       checked={item.available} 
-                      onCheckedChange={() => toggleAvailability(item.id, item.available)}
+                      onCheckedChange={() => toggleAvailability(item.id, item.available ?? false)}
                       disabled={updateMenuItem.isPending}
                     />
                     <Label className="text-xs font-medium text-foreground/80">{item.available ? 'Available' : 'Hidden'}</Label>

@@ -50,7 +50,7 @@ export default function PastOrders() {
     const q = query.trim().toLowerCase();
     return [...orders]
       .filter((o) => {
-        const when = new Date(o.paidAt ?? o.createdAt);
+        const when = new Date((o.paidAt ?? o.createdAt) ?? new Date().toISOString());
         if (range === "today" && !isToday(when)) return false;
         if (range === "week" && !isThisWeek(when, { weekStartsOn: 1 })) return false;
         if (range === "month" && !isThisMonth(when)) return false;
@@ -61,8 +61,8 @@ export default function PastOrders() {
         return true;
       })
       .sort((a, b) => {
-        const ta = new Date(a.paidAt ?? a.createdAt).getTime();
-        const tb = new Date(b.paidAt ?? b.createdAt).getTime();
+        const ta = new Date((a.paidAt ?? a.createdAt) ?? new Date().toISOString()).getTime();
+        const tb = new Date((b.paidAt ?? b.createdAt) ?? new Date().toISOString()).getTime();
         return tb - ta;
       });
   }, [orders, range, query]);
@@ -160,7 +160,7 @@ export default function PastOrders() {
         ) : (
           <div className="space-y-3">
             {filtered.map((order) => {
-              const when = new Date(order.paidAt ?? order.createdAt);
+              const when = new Date((order.paidAt ?? order.createdAt) ?? new Date().toISOString());
               const itemCount = order.items?.reduce(
                 (a: number, i: { quantity?: number }) => a + (i.quantity ?? 0),
                 0,

@@ -124,7 +124,7 @@ export default function OrderDetail() {
               <CardHeader className="bg-muted/50 pb-4 border-b border-border/60 rounded-t-2xl">
                 <CardTitle className="text-xl font-bold tracking-tight text-foreground">Order #{order.id}</CardTitle>
                 <div className="text-sm text-muted-foreground mt-1">
-                  Placed {format(new Date(order.createdAt), "h:mm a")}
+                  Placed {order.createdAt ? format(new Date(order.createdAt), "h:mm a") : ""}
                 </div>
                 {(order as any).scheduledFor && (
                   <div className="flex items-center gap-1 mt-1 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-xl px-2 py-1">
@@ -191,9 +191,9 @@ export default function OrderDetail() {
               Prep Instructions
             </h2>
 
-            {order.items.map((item, idx) => {
+            {(order.items ?? []).map((item, idx) => {
               // Find the full menu item to get the prep steps
-              const menuItem = order.menuItems?.find(m => m.id === item.menuItemId);
+              const menuItem = (order.menuItems as import("@workspace/api-client-react").MenuItem[] | undefined)?.find((m) => m.id === item.menuItemId);
               
               return (
                 <Card key={idx} className="bg-white border border-border rounded-2xl shadow-sm overflow-hidden">
@@ -240,7 +240,7 @@ export default function OrderDetail() {
                     {(() => {
                       const sps = (menuItem as any)?.sizePrepSteps as Record<string, { stepNumber: number; instruction: string }[]> | undefined;
                       const sizeSteps = item.size != null ? sps?.[item.size] : undefined;
-                      const stepsToShow = (sizeSteps && sizeSteps.length > 0) ? sizeSteps : (menuItem?.prepSteps ?? []);
+                      const stepsToShow = (sizeSteps && sizeSteps.length > 0) ? sizeSteps : ((menuItem?.prepSteps as { stepNumber: number; instruction: string }[] | undefined) ?? []);
                       if (!stepsToShow || stepsToShow.length === 0) {
                         return <div className="p-4 text-muted-foreground text-sm italic">No specific prep steps recorded for this item.</div>;
                       }
@@ -262,7 +262,7 @@ export default function OrderDetail() {
                             <div 
                               key={step.stepNumber}
                               className={`p-4 flex items-start gap-3 cursor-pointer transition-colors ${isChecked ? 'bg-muted/50/80 opacity-75' : 'hover:bg-muted/50'}`}
-                              onClick={() => toggleStep(item.menuItemId, step.stepNumber)}
+                              onClick={() => toggleStep(item.menuItemId ?? 0, step.stepNumber)}
                             >
                               <div className={`mt-0.5 shrink-0 h-5 w-5 rounded-md border flex items-center justify-center transition-colors ${isChecked ? 'bg-primary border-primary text-white' : 'border-border bg-white'}`}>
                                 {isChecked && <Check className="h-3.5 w-3.5" />}

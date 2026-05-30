@@ -22,7 +22,7 @@ function cartKey(menuItemId: number, size: DrinkSize, temperature: DrinkTemp, mo
 function getItemPrice(item: MenuItem, size: DrinkSize): number {
   const sp = item.sizePrices as Record<string, number> | undefined;
   if (sp && sp[size] && sp[size] > 0) return sp[size];
-  return item.price;
+  return item.price ?? 0;
 }
 
 interface CartContextType {

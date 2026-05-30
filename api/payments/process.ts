@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { supabase, setCors, err } from "../_utils";
+import { supabase, setCors, orderToClient, err } from "../_utils";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
@@ -7,16 +7,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return err(res, 405, "Method not allowed");
 
   const body = req.body ?? {};
-  const { orderId, sourceId, ...orderPayload } = body;
+  const { orderId, sourceId } = body;
 
   const sb = supabase();
 
-  // If sourceId is "FREE" or no Square keys configured, mark as paid and create order
+  // If sourceId is "FREE" or no Square keys configured, mark as paid
   const squareAppId = process.env.SQUARE_APPLICATION_ID;
   const squareToken = process.env.SQUARE_ACCESS_TOKEN;
 
   if (!squareAppId || !squareToken || sourceId === "FREE") {
-    // Free / cash order — just mark paid
     if (orderId) {
       const { data, error } = await sb
         .from("orders")
@@ -25,13 +24,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select()
         .single();
       if (error) return err(res, 400, error.message);
-      return res.json({ success: true, order: data });
+      return res.json(orderToClient(data as Record<string, unknown>));
     }
     return res.json({ success: true });
   }
 
-  // Square payment processing
+  // Square payment processing — requires orderId to look up the authoritative total
+  if (!orderId) {
+    return err(res, 400, "orderId is required for card payments");
+  }
+
   try {
+    // Look up the order to get the correct charge amount
+    const { data: orderRow, error: orderErr } = await sb
+      .from("orders")
+      .select("total_amount")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderErr || !orderRow) {
+      return err(res, 404, "Order not found");
+    }
+
+    const totalAmount = Number(orderRow.total_amount ?? 0);
+    if (totalAmount <= 0) {
+      return err(res, 400, "Order total must be greater than zero for card payments");
+    }
+
     const { default: fetch } = await import("node-fetch");
     const baseUrl =
       process.env.SQUARE_ENVIRONMENT === "production"
@@ -48,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source_id: sourceId,
         idempotency_key: `order-${orderId}-${Date.now()}`,
         amount_money: {
-          amount: Math.round((orderPayload.totalAmount ?? 0) * 100),
+          amount: Math.round(totalAmount * 100),
           currency: "USD",
         },
         location_id: process.env.SQUARE_LOCATION_ID,
@@ -62,14 +81,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return err(res, 400, msg);
     }
 
-    if (orderId) {
-      await sb
-        .from("orders")
-        .update({ paid_at: new Date().toISOString() })
-        .eq("id", orderId);
-    }
+    const { data: updatedOrder, error: updateErr } = await sb
+      .from("orders")
+      .update({ paid_at: new Date().toISOString() })
+      .eq("id", orderId)
+      .select()
+      .single();
 
-    return res.json({ success: true, paymentId: squareData.payment?.id });
+    if (updateErr) return err(res, 500, updateErr.message);
+
+    return res.json({ success: true, paymentId: squareData.payment?.id, order: orderToClient(updatedOrder as Record<string, unknown>) });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Payment processing error";
     return err(res, 500, msg);

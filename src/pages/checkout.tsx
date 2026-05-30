@@ -329,6 +329,7 @@ export default function Checkout() {
 
       const clerkUserId = user?.id ?? undefined;
       const scheduledForIso = scheduleEnabled && scheduledFor ? new Date(scheduledFor).toISOString() : undefined;
+      const gpTotalDiscount = Math.round((computedDiscountAmount + cappedRewardDiscount + happyHourDiscount) * 100) / 100;
       const orderPayload = {
         customerName: data.customerName,
         customerEmail: data.customerEmail,
@@ -336,6 +337,8 @@ export default function Checkout() {
         customerSmsConsent: !!data.smsConsent,
         notes: data.notes || null,
         discountCode: appliedDiscount?.code ?? null,
+        discountAmount: gpTotalDiscount,
+        totalAmount: grandTotal,
         clerkUserId,
         rewardId: appliedReward?.id ?? null,
         scheduledFor: scheduledForIso,
@@ -421,6 +424,7 @@ export default function Checkout() {
 
     const clerkUserId = user?.id ?? undefined;
     const scheduledForIso = scheduleEnabled && scheduledFor ? new Date(scheduledFor).toISOString() : undefined;
+    const totalDiscount = Math.round((computedDiscountAmount + cappedRewardDiscount + happyHourDiscount) * 100) / 100;
     const orderPayload = {
       customerName: data.customerName,
       customerEmail: data.customerEmail,
@@ -428,6 +432,8 @@ export default function Checkout() {
       customerSmsConsent: !!data.smsConsent,
       notes: data.notes || null,
       discountCode: appliedDiscount?.code ?? null,
+      discountAmount: totalDiscount,
+      totalAmount: grandTotal,
       clerkUserId,
       rewardId: appliedReward?.id ?? null,
       scheduledFor: scheduledForIso,
@@ -452,23 +458,41 @@ export default function Checkout() {
       }
     };
 
+    // Helper: create order via API and return it
+    const createOrderViaApi = async () => {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getDevHeaders() },
+        credentials: "include",
+        body: JSON.stringify(orderPayload),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "Order creation failed" }));
+        throw new Error(error || "Failed to create order");
+      }
+      return res.json();
+    };
+
     if (paymentMethod === "card" && discountedTotal === 0) {
       setPaymentLoading(true);
       try {
+        const order = await createOrderViaApi();
         const res = await fetch("/api/payments/process", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getDevHeaders() },
-          body: JSON.stringify({ sourceId: "FREE", ...orderPayload }),
+          credentials: "include",
+          body: JSON.stringify({ orderId: order.id, sourceId: "FREE" }),
         });
         if (!res.ok) {
-          const { error } = await res.json();
+          const { error } = await res.json().catch(() => ({ error: "Failed to place order" }));
           alert(error || "Failed to place order");
           return;
         }
-        const order = await res.json();
-        stashEarned(order.id, Number(order.totalAmount), true);
+        stashEarned(order.id, grandTotal, true);
         clearCart();
         setLocation(`/order-status/${order.id}`);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Failed to place order");
       } finally {
         setPaymentLoading(false);
       }
@@ -478,6 +502,9 @@ export default function Checkout() {
     if (paymentMethod === "card" && squareReady && squareCard) {
       setPaymentLoading(true);
       try {
+        // Create the order first so we have an orderId for the payment
+        const order = await createOrderViaApi();
+
         const result = await squareCard.tokenize();
         if (!result.token) {
           const errMsg = result.errors?.[0]?.message ?? "Card tokenization failed";
@@ -488,26 +515,28 @@ export default function Checkout() {
         const res = await fetch("/api/payments/process", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getDevHeaders() },
-          body: JSON.stringify({ sourceId: result.token, ...orderPayload }),
+          credentials: "include",
+          body: JSON.stringify({ orderId: order.id, sourceId: result.token }),
         });
 
         if (!res.ok) {
-          const { error } = await res.json();
+          const { error } = await res.json().catch(() => ({ error: "Payment failed" }));
           alert(error || "Payment failed");
           return;
         }
 
-        const order = await res.json();
-        stashEarned(order.id, Number(order.totalAmount), true);
+        stashEarned(order.id, grandTotal, true);
         clearCart();
         setLocation(`/order-status/${order.id}`);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Payment failed. Please try again.");
       } finally {
         setPaymentLoading(false);
       }
     } else {
-      createOrder.mutate({ data: orderPayload }, {
+      createOrder.mutate(orderPayload, {
         onSuccess: (order) => {
-          stashEarned(order.id, Number(order.totalAmount), false);
+          stashEarned(order.id, Number(order.totalAmount ?? grandTotal), false);
           clearCart();
           setLocation(`/order-status/${order.id}`);
         },
@@ -518,6 +547,13 @@ export default function Checkout() {
       });
     }
   };
+
+  // Auto-dismiss celebration modal after 3 seconds
+  useEffect(() => {
+    if (!celebrationReward) return;
+    const t = setTimeout(() => setCelebrationReward(null), 3000);
+    return () => clearTimeout(t);
+  }, [celebrationReward]);
 
   // When closed, don't block — prompt them to schedule instead
 
@@ -537,13 +573,6 @@ export default function Checkout() {
       </CustomerLayout>
     );
   }
-
-  // Auto-dismiss celebration modal after 3 seconds
-  useEffect(() => {
-    if (!celebrationReward) return;
-    const t = setTimeout(() => setCelebrationReward(null), 3000);
-    return () => clearTimeout(t);
-  }, [celebrationReward]);
 
   const isSubmitting = paymentLoading || createOrder.isPending;
 
@@ -773,10 +802,10 @@ export default function Checkout() {
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {reward.discountType === "percent"
-                              ? `${reward.discountValue}% off your order`
+                              ? `${reward.discountValue ?? 0}% off your order`
                               : reward.discountType === "free_item"
                                 ? "Free highest-priced drink"
-                                : `$${reward.discountValue.toFixed(2)} off`}
+                                : `$${(reward.discountValue ?? 0).toFixed(2)} off`}
                           </p>
                         </button>
                       );
@@ -841,58 +870,6 @@ export default function Checkout() {
               )}
             </CardContent>
           </Card>
-
-          {/* Inline Ice Cubes Reward Picker */}
-          {user?.id && !appliedReward && availableRewards.length > 0 && (
-            <Card className="bg-card border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="text-xl flex items-center gap-2">
-                  🧊 Use Ice Cubes
-                  <Badge variant="secondary" className="text-xs font-normal ml-auto">
-                    {pointsBalance} {pointsBalance === 1 ? "cube" : "cubes"} available
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {availableRewards.map((r) => {
-                  const canAfford = pointsBalance >= r.pointsCost;
-                  const discountLabel =
-                    r.discountType === "percent"
-                      ? `${r.discountValue}% off`
-                      : r.discountType === "free_item"
-                        ? "Free item"
-                        : `$${r.discountValue.toFixed(2)} off`;
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      disabled={!canAfford}
-                      onClick={() => triggerRewardCelebration(r)}
-                      className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all ${
-                        canAfford
-                          ? "border-blue-200 bg-blue-50 hover:bg-blue-100 cursor-pointer"
-                          : "border-border/40 bg-muted/30 opacity-60 cursor-not-allowed"
-                      }`}
-                    >
-                      <div>
-                        <p className="font-medium text-sm">{r.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {discountLabel} · {r.pointsCost} cubes
-                        </p>
-                      </div>
-                      {canAfford ? (
-                        <Badge className="bg-blue-500 hover:bg-blue-500 text-white text-xs shrink-0">Use</Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          Need {r.pointsCost - pointsBalance} more
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Payment Method */}
           <Card className="bg-card border-0 shadow-md">
@@ -1186,7 +1163,7 @@ export default function Checkout() {
                 ) : celebrationReward.discountType === "free_item" ? (
                   <span className="text-blue-500 font-normal">· free item!</span>
                 ) : (
-                  <span className="text-blue-500 font-normal">· saves ${celebrationReward.discountValue.toFixed(2)}</span>
+                  <span className="text-blue-500 font-normal">· saves ${(celebrationReward.discountValue ?? 0).toFixed(2)}</span>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-6 italic">Tap anywhere to continue</p>
