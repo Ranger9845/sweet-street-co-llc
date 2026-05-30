@@ -154,7 +154,7 @@ export default function RewardsManagement() {
                         ? `${r.discountValue}% off`
                         : r.discountType === "free_item"
                           ? "Free item"
-                          : `$${r.discountValue.toFixed(2)} off`}
+                          : `$${(r.discountValue ?? 0).toFixed(2)} off`}
                     </Badge>
                   </div>
                 </CardContent>
