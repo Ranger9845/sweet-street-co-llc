@@ -2,13 +2,14 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabase, setCors, requireOwner, err } from "./_utils";
 
 // Map DB snake_case → app camelCase
-function toClient(row: Record<string, unknown>) {
+function toClient(row: Record<string, unknown>, includeSecret = false) {
   return {
     id: row.id,
     shopName: row.shop_name,
     siteDescription: row.site_description,
     readyMessage: row.ready_message,
-    ownerPassword: row.owner_password,
+    // ownerPassword is only included when the caller already proved ownership (PATCH)
+    ...(includeSecret ? { ownerPassword: row.owner_password } : {}),
     isOpen: row.is_open,
     manualOpen: row.is_open, // alias used by settings page toggle
     announcementEnabled: row.announcement_enabled,
@@ -105,14 +106,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const end = parseTime((data.happy_hour_end as string) ?? "17:00");
     const isHappyHour = !!(data.happy_hour_enabled && hour >= start && hour < end);
 
-    // SHOP LOCKED — override isOpen until manually re-opened via dashboard
-    return res.json({
-      ...client,
-      isOpen: false,
-      isHappyHour: false,
-      announcementEnabled: true,
-      announcementText: "Our website will be temporarily unavailable for the next couple of days as we transition to a new service provider to ensure a more reliable and seamless experience. The current provider has experienced frequent outages, and we are taking this step to maintain a higher standard of professionalism and performance. During this migration, the site will remain online but non-responsive until the transition is complete. Thank you for your patience as we work to improve your experience.",
-    });
+    // Always honour the DB is_open value — never override with computed hours
+    return res.json({ ...client, isHappyHour, isOpen: !!data.is_open, manualOpen: !!data.is_open });
   }
 
   if (req.method === "PATCH") {
@@ -125,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data, error } = await sb.from("settings").update(fields).eq("id", 1).select().single();
     if (error) return err(res, 400, error.message);
-    return res.json(toClient(data as Record<string, unknown>));
+    return res.json(toClient(data as Record<string, unknown>, true));
   }
 
   return err(res, 405, "Method not allowed");
