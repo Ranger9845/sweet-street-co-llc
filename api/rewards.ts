@@ -10,7 +10,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "GET") {
     const { data, error } = await sb.from("rewards").select("*").order("id");
     if (error) return err(res, 500, error.message);
-    return res.json(data ?? []);
+    return res.json(
+      (data ?? []).map((r: Record<string, unknown>) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        pointsCost: r.points_cost,
+        discountType: r.discount_type,
+        discountValue: r.discount_value,
+        active: r.active,
+      })),
+    );
   }
 
   const isOwner = await requireOwner(req);

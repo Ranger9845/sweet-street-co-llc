@@ -11,11 +11,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data, error } = await sb
     .from("points_ledger")
-    .select("points")
-    .eq("clerk_user_id", userId);
+    .select("id, points, type, description, created_at")
+    .eq("clerk_user_id", userId)
+    .order("created_at", { ascending: false });
 
   if (error) return err(res, 500, error.message);
 
-  const balance = (data ?? []).reduce((sum, row) => sum + (row.points ?? 0), 0);
-  return res.json({ balance, userId });
+  const rows = data ?? [];
+  const balance = rows.reduce((sum, row) => sum + (row.points ?? 0), 0);
+  const history = rows.map((r: Record<string, unknown>) => ({
+    id: r.id,
+    points: r.points,
+    type: r.type,
+    description: r.description,
+    createdAt: r.created_at,
+  }));
+  return res.json({ balance, userId, history });
 }
