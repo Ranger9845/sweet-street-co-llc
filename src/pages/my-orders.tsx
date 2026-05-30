@@ -141,7 +141,7 @@ function OrderCard({ order }: { order: Order }) {
                 </div>
               </div>
               <span className="text-muted-foreground tabular-nums ml-3">
-                ${(item.unitPrice * item.quantity).toFixed(2)}
+                ${((item.unitPrice ?? 0) * (item.quantity ?? 1)).toFixed(2)}
               </span>
             </div>
           ))}
@@ -149,7 +149,7 @@ function OrderCard({ order }: { order: Order }) {
 
         <div className="flex items-center justify-between pt-2 border-t border-border/50">
           <span className="text-sm text-muted-foreground">Total</span>
-          <span className="font-semibold">${order.totalAmount.toFixed(2)}</span>
+          <span className="font-semibold">${(Number(order.totalAmount) || 0).toFixed(2)}</span>
         </div>
 
         {isActive && (

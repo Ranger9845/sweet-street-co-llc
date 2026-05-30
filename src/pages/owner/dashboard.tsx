@@ -119,7 +119,7 @@ function LiveCartCard({ cart }: { cart: LiveCart }) {
                   <span className="font-semibold text-foreground/90">{item.name}</span>
                   {item.size && <span className="text-muted-foreground text-xs font-medium">({item.size})</span>}
                   <span className="ml-auto text-muted-foreground font-medium tabular-nums">
-                    ${(item.unitPrice * item.quantity).toFixed(2)}
+                    ${((item.unitPrice ?? 0) * (item.quantity ?? 1)).toFixed(2)}
                   </span>
                 </div>
                 {item.specialInstructions && (
@@ -945,7 +945,7 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
           {/* Total line */}
           <div className="flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-1 mb-2">
             <span>{(order.items ?? []).length} item{(order.items ?? []).length !== 1 ? "s" : ""}</span>
-            <span className="font-bold text-slate-700">${Number(order.totalAmount).toFixed(2)}</span>
+            <span className="font-bold text-slate-700">${(Number(order.totalAmount) || 0).toFixed(2)}</span>
           </div>
 
           {/* Recipe section — shown when menu item matched */}

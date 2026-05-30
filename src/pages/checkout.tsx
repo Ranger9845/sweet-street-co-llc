@@ -763,7 +763,7 @@ export default function Checkout() {
                             ? `${appliedReward.discountValue}% off`
                             : appliedReward.discountType === "free_item"
                               ? "Free highest-priced item"
-                              : `$${appliedReward.discountValue.toFixed(2)} off`}
+                              : `$${(appliedReward.discountValue ?? 0).toFixed(2)} off`}
                           {" "}· {appliedReward.pointsCost} cubes
                         </p>
                       </div>
