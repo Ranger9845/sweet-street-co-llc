@@ -49,41 +49,26 @@ export default function Settings() {
 
   useEffect(() => {
     if (settings) {
-      setShopName(settings.shopName);
-      setSiteDescription(settings.siteDescription);
-      setReadyMessage(settings.readyMessage);
-      setOwnerPassword(settings.ownerPassword);
-      // The API returns `isOpen` as the *effective* state (manual AND within hours).
-      // The toggle should reflect the manual override, which is `manualOpen`.
-      const s = settings as typeof settings & {
-        manualOpen?: boolean;
-        happyHourEnabled?: boolean;
-        happyHourStart?: string;
-        happyHourEnd?: string;
-        happyHourDiscountType?: string;
-        happyHourDiscountValue?: string;
-      };
-      setIsOpen(typeof s.manualOpen === "boolean" ? s.manualOpen : settings.isOpen);
-      setAnnouncementEnabled(settings.announcementEnabled);
-      setAnnouncementText(settings.announcementText);
-      setHappyHourEnabled(s.happyHourEnabled ?? true);
-      setHappyHourStart(s.happyHourStart ?? "15:00");
-      setHappyHourEnd(s.happyHourEnd ?? "17:00");
-      setHappyHourDiscountType(s.happyHourDiscountType ?? "percent");
-      setHappyHourDiscountValue(s.happyHourDiscountValue ?? "50");
-      const ps = settings as typeof settings & {
-        posAccentColor?: string; posBgColor?: string; posCardColor?: string;
-        posForegroundColor?: string; posMutedColor?: string; posBorderColor?: string;
-        posHeaderText?: string; posButtonRadius?: string;
-      };
-      setPosAccentColor(ps.posAccentColor ?? "#F9AF94");
-      setPosBgColor(ps.posBgColor ?? "#FFF3EB");
-      setPosCardColor(ps.posCardColor ?? "#FFFFFF");
-      setPosForegroundColor(ps.posForegroundColor ?? "#4D2A1A");
-      setPosMutedColor(ps.posMutedColor ?? "#945D42");
-      setPosBorderColor(ps.posBorderColor ?? "#E2D2CA");
-      setPosHeaderText(ps.posHeaderText ?? "");
-      setPosButtonRadius(ps.posButtonRadius ?? "16");
+      setShopName(settings.shopName ?? "");
+      setSiteDescription(settings.siteDescription ?? "");
+      setReadyMessage(settings.readyMessage ?? "");
+      setOwnerPassword(settings.ownerPassword ?? "");
+      setIsOpen(typeof settings.manualOpen === "boolean" ? settings.manualOpen : (settings.isOpen ?? false));
+      setAnnouncementEnabled(settings.announcementEnabled ?? false);
+      setAnnouncementText(settings.announcementText ?? "");
+      setHappyHourEnabled(settings.happyHourEnabled ?? true);
+      setHappyHourStart(settings.happyHourStart ?? "15:00");
+      setHappyHourEnd(settings.happyHourEnd ?? "17:00");
+      setHappyHourDiscountType(settings.happyHourDiscountType ?? "percent");
+      setHappyHourDiscountValue(String(settings.happyHourDiscountValue ?? "50"));
+      setPosAccentColor(settings.posAccentColor ?? "#F9AF94");
+      setPosBgColor(settings.posBgColor ?? "#FFF3EB");
+      setPosCardColor(settings.posCardColor ?? "#FFFFFF");
+      setPosForegroundColor(settings.posForegroundColor ?? "#4D2A1A");
+      setPosMutedColor(settings.posMutedColor ?? "#945D42");
+      setPosBorderColor(settings.posBorderColor ?? "#E2D2CA");
+      setPosHeaderText(settings.posHeaderText ?? "");
+      setPosButtonRadius(settings.posButtonRadius ?? "16");
     }
   }, [settings]);
 

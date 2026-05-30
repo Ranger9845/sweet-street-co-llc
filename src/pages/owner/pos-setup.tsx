@@ -283,7 +283,7 @@ export default function PosSetup() {
 
   async function handleDeleteCategory(id: number) {
     try {
-      await deleteCat.mutateAsync({ id });
+      await deleteCat.mutateAsync(id);
       await queryClient.invalidateQueries({ queryKey: getListPosCategoriesQueryKey() });
       await queryClient.invalidateQueries({ queryKey: getListMenuItemsQueryKey() });
       toast({ title: "Category deleted" });
@@ -294,7 +294,7 @@ export default function PosSetup() {
   }
 
   // Group items by category for preview
-  const sortedCats = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
+  const sortedCats = [...categories].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const uncategorized = itemRows.filter((r) => !r.posCategoryId && !r.posHidden);
 
   return (

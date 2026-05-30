@@ -211,7 +211,7 @@ function OpenCloseToggle() {
 
   const handleToggle = () => {
     const newVal = !isOpen;
-    updateSettings.mutate({ data: { isOpen: newVal } as Parameters<typeof updateSettings.mutate>[0]["data"] }, {
+    updateSettings.mutate({ isOpen: newVal }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetSettingsQueryKey() });
         toast({

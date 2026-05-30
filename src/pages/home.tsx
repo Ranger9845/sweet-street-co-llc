@@ -784,7 +784,7 @@ export default function Home() {
                         <TempBadge temperature={(item as { temperature?: string }).temperature} />
                         {isLotusDrink(item as LotusDetectable) && <EnergyBadge />}
                       </div>
-                      <SizePriceBadge item={item} isHappyHour={isHappyHour} hhDiscountType={hhDiscountType} hhDiscountValue={hhDiscountValue} />
+                      <SizePriceBadge item={{ ...item, price: item.price ?? 0 }} isHappyHour={isHappyHour} hhDiscountType={hhDiscountType} hhDiscountValue={hhDiscountValue} />
                     </div>
                     {item.description && (
                       <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{item.description}</p>
