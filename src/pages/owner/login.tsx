@@ -12,7 +12,7 @@ export default function OwnerLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
-  const { loginDirect } = useOwnerAuth();
+  const { login } = useOwnerAuth();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -20,12 +20,14 @@ export default function OwnerLogin() {
     if (!password) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/owner/verify", {
+      const res = await fetch("/api/auth/verify-owner", {
         method: "POST",
-        headers: { "x-owner-password": password },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
       });
-      if (res.ok) {
-        loginDirect(password);
+      const { valid } = await res.json();
+      if (valid) {
+        login(password, password); // store in context; both args same since server confirmed
         setLocation("/owner");
       } else {
         toast({
@@ -36,7 +38,7 @@ export default function OwnerLogin() {
         setPassword("");
       }
     } catch {
-      toast({ title: "Network error", description: "Could not reach the server. Try again.", variant: "destructive" });
+      toast({ title: "Error", description: "Could not reach the server.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -73,12 +75,8 @@ export default function OwnerLogin() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button
-              type="submit"
-              className="w-full bg-primary text-white rounded-xl hover:bg-primary/90 shadow-sm font-medium transition-all duration-200"
-              disabled={!password || loading}
-            >
-              {loading ? "Verifying…" : "Access Dashboard"}
+            <Button type="submit" className="w-full bg-primary text-white rounded-xl hover:bg-primary/90 shadow-sm font-medium transition-all duration-200" disabled={!password || loading}>
+              Access Dashboard
             </Button>
           </CardFooter>
         </form>

@@ -2,9 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 
 interface OwnerAuthContextType {
   isOwner: boolean;
-  verifying: boolean;
   password: string;
-  loginDirect: (password: string) => void;
+  login: (password: string, actualPassword?: string) => boolean;
   logout: () => void;
 }
 
@@ -13,40 +12,28 @@ const OwnerAuthContext = createContext<OwnerAuthContextType | undefined>(undefin
 export function OwnerAuthProvider({ children }: { children: ReactNode }) {
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [password, setPassword] = useState<string>("");
-  const [verifying, setVerifying] = useState<boolean>(true);
 
   useEffect(() => {
     const stored = localStorage.getItem("sweet_street_owner_auth");
     const storedPw = localStorage.getItem("sweet_street_owner_pw");
-    if (stored === "true" && storedPw && storedPw !== "undefined" && storedPw !== "null") {
-      fetch("/api/owner/verify", { method: "POST", headers: { "x-owner-password": storedPw } })
-        .then((r) => {
-          if (r.ok) {
-            setIsOwner(true);
-            setPassword(storedPw);
-          } else {
-            localStorage.removeItem("sweet_street_owner_auth");
-            localStorage.removeItem("sweet_street_owner_pw");
-          }
-        })
-        .catch(() => {
-          // Network failure — trust cached session
-          setIsOwner(true);
-          setPassword(storedPw);
-        })
-        .finally(() => setVerifying(false));
-    } else {
-      localStorage.removeItem("sweet_street_owner_auth");
-      localStorage.removeItem("sweet_street_owner_pw");
-      setVerifying(false);
+    if (stored === "true") {
+      setIsOwner(true);
+      if (storedPw) setPassword(storedPw);
     }
   }, []);
 
-  const loginDirect = (pw: string) => {
-    setIsOwner(true);
-    setPassword(pw);
-    localStorage.setItem("sweet_street_owner_auth", "true");
-    localStorage.setItem("sweet_street_owner_pw", pw);
+  const login = (pw: string, actualPassword?: string) => {
+    // When called from the server-verified login flow both args are the same pw.
+    // Legacy path: if actualPassword differs, do a local compare.
+    const verified = !actualPassword || pw === actualPassword;
+    if (verified && pw) {
+      setIsOwner(true);
+      setPassword(pw);
+      localStorage.setItem("sweet_street_owner_auth", "true");
+      localStorage.setItem("sweet_street_owner_pw", pw);
+      return true;
+    }
+    return false;
   };
 
   const logout = () => {
@@ -57,7 +44,7 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <OwnerAuthContext.Provider value={{ isOwner, verifying, password, loginDirect, logout }}>
+    <OwnerAuthContext.Provider value={{ isOwner, password, login, logout }}>
       {children}
     </OwnerAuthContext.Provider>
   );
