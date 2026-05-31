@@ -5,6 +5,7 @@ function toClient(row: Record<string, unknown>) {
   return {
     ...row,
     sizePrices: row.size_prices,
+    prepSteps: row.prep_steps,
     sizePrepSteps: row.size_prep_steps,
     sizeIngredients: row.size_ingredients,
     modifierIds: row.modifier_ids,

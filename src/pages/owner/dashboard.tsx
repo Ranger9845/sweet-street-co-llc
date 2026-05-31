@@ -1,6 +1,6 @@
 import { OwnerLayout } from "@/components/layout/owner-layout";
 import {
-  useGetOrderStats, useListOrders, getListOrdersQueryKey,
+  useGetOrderStats, useListOrders, useListMenuItems, getListOrdersQueryKey,
   getGetOrderStatsQueryKey,
   useGetSettings, useUpdateSettings, getGetSettingsQueryKey,
 } from "@workspace/api-client-react";
@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { BubbleCupLoader } from "@/components/bubble-cup-loader";
 import { useNewOrderSound } from "@/hooks/use-new-order-sound";
 import { useOrderEvents } from "@/hooks/useOrderEvents";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOwnerAuth } from "@/components/owner-auth-provider";
 import {
@@ -815,11 +815,12 @@ function useVisitorCount(intervalMs = 15_000) {
 }
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
-function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, onUnbump, bumpPending, updatePending }: {
+function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, onUnbump, onShowRecipe, bumpPending, updatePending }: {
   order: any; variant?: "pending" | "preparing" | "ready"; now: Date;
   onBump: (id: number, name: string) => void;
   onMarkPickedUp: (id: number, name: string, wasPaid: boolean) => void;
   onUnbump: (id: number, name: string) => void;
+  onShowRecipe: (order: any) => void;
   bumpPending: boolean; updatePending: boolean;
 }) {
   const isReady = variant === "ready";
@@ -1035,7 +1036,7 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
             ) : (
               <Button size="sm"
                 className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
-                onClick={() => onBump(order.id, order.customerName)} disabled={bumpPending}>
+                onClick={() => onShowRecipe(order)} disabled={bumpPending}>
                 <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Ready
               </Button>
             )}
@@ -1281,6 +1282,30 @@ export default function Dashboard() {
     query: { queryKey: getListOrdersQueryKey({ status: "ready" }), refetchInterval: 5000, refetchIntervalInBackground: true }
   });
 
+  // Fetch all menu items once so recipes can be shown on order cards
+  const { data: allMenuItems } = useListMenuItems();
+  const menuItemsById = useMemo(() => {
+    const map = new Map<number, any>();
+    (allMenuItems ?? []).forEach((m: any) => map.set(m.id, m));
+    return map;
+  }, [allMenuItems]);
+
+  // Enrich a list of orders with the matching menu item data
+  const enrich = useCallback((orders: any[] | undefined) =>
+    (orders ?? []).map((o: any) => ({
+      ...o,
+      menuItems: (o.items ?? [])
+        .map((item: any) => menuItemsById.get(item.menuItemId))
+        .filter(Boolean),
+    })), [menuItemsById]);
+
+  const enrichedPending   = useMemo(() => enrich(pendingOrders),   [enrich, pendingOrders]);
+  const enrichedPreparing = useMemo(() => enrich(preparingOrders), [enrich, preparingOrders]);
+  const enrichedReady     = useMemo(() => enrich(readyOrders),     [enrich, readyOrders]);
+
+  // Recipe sheet state — clicking "Mark Ready" on a pending order opens this
+  const [recipeOrder, setRecipeOrder] = useState<any | null>(null);
+
 
   // Mr. Krabs auto-bump — fires every 90s, refreshes order lists on bump
   useAutoBump(password, useCallback((result: AutoBumpResult) => {
@@ -1293,8 +1318,8 @@ export default function Dashboard() {
     });
   }, [queryClient, toast]));
 
-  const latestPending = pendingOrders && pendingOrders.length > 0 ? pendingOrders[pendingOrders.length - 1] : null;
-  const ding = useNewOrderSound(pendingOrders?.length, {
+  const latestPending = enrichedPending.length > 0 ? enrichedPending[enrichedPending.length - 1] : null;
+  const ding = useNewOrderSound(enrichedPending.length, {
     latestOrder: latestPending ? { id: latestPending.id, customerName: latestPending.customerName } : null,
   });
 
@@ -1374,7 +1399,7 @@ export default function Dashboard() {
     );
   }
 
-  const squarePendingCount = (pendingOrders ?? []).filter((o: any) =>
+  const squarePendingCount = enrichedPending.filter((o: any) =>
     typeof o.source === "string" && o.source.startsWith("square")
   ).length;
 
@@ -1510,17 +1535,18 @@ export default function Dashboard() {
 
             {/* Ready for Pickup */}
             <div className="mt-8">
-              <ColumnHeader label="Ready for Pickup" count={readyOrders?.length ?? 0} color="border-emerald-200" dot="bg-emerald-500" />
+              <ColumnHeader label="Ready for Pickup" count={enrichedReady.length} color="border-emerald-200" dot="bg-emerald-500" />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence mode="popLayout">
-                  {(readyOrders?.length ?? 0) === 0 ? (
+                  {enrichedReady.length === 0 ? (
                     <motion.div key="empty-ready" className="col-span-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                       <EmptyColumn icon={CheckCircle2} message="No orders waiting for pickup" />
                     </motion.div>
                   ) : (
-                    readyOrders?.map((order) => (
+                    enrichedReady.map((order) => (
                       <OrderCard key={order.id} order={order} variant="ready" now={now}
                         onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
+                        onShowRecipe={setRecipeOrder}
                         bumpPending={bumpPending} updatePending={updatePending} />
                     ))
                   )}
@@ -1531,17 +1557,18 @@ export default function Dashboard() {
             {/* New Orders + Preparing */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
               <div>
-                <ColumnHeader label="New Orders" count={pendingOrders?.length ?? 0} color="border-amber-200" dot="bg-amber-400" />
+                <ColumnHeader label="New Orders" count={enrichedPending.length} color="border-amber-200" dot="bg-amber-400" />
                 <div className="space-y-4">
                   <AnimatePresence mode="popLayout">
-                    {(pendingOrders?.length ?? 0) === 0 ? (
+                    {enrichedPending.length === 0 ? (
                       <motion.div key="empty-pending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                         <EmptyColumn icon={Clock} message="Queue is clear" />
                       </motion.div>
                     ) : (
-                      pendingOrders?.map((order) => (
+                      enrichedPending.map((order) => (
                         <OrderCard key={order.id} order={order} variant="pending" now={now}
                           onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
+                          onShowRecipe={setRecipeOrder}
                           bumpPending={bumpPending} updatePending={updatePending} />
                       ))
                     )}
@@ -1550,17 +1577,18 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <ColumnHeader label="Preparing" count={preparingOrders?.length ?? 0} color="border-sky-200" dot="bg-sky-400" />
+                <ColumnHeader label="Preparing" count={enrichedPreparing.length} color="border-sky-200" dot="bg-sky-400" />
                 <div className="space-y-4">
                   <AnimatePresence mode="popLayout">
-                    {(preparingOrders?.length ?? 0) === 0 ? (
+                    {enrichedPreparing.length === 0 ? (
                       <motion.div key="empty-preparing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                         <EmptyColumn icon={ChefHat} message="Nothing being prepared" />
                       </motion.div>
                     ) : (
-                      preparingOrders?.map((order) => (
+                      enrichedPreparing.map((order) => (
                         <OrderCard key={order.id} order={order} variant="preparing" now={now}
                           onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
+                          onShowRecipe={setRecipeOrder}
                           bumpPending={bumpPending} updatePending={updatePending} />
                       ))
                     )}
@@ -1568,6 +1596,107 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Recipe Sheet — shown when an order's "Mark Ready" is tapped */}
+            <AnimatePresence>
+              {recipeOrder && (
+                <motion.div
+                  className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                >
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRecipeOrder(null)} />
+                  <motion.div
+                    className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
+                    initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 28 }}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/60 shrink-0">
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Order #{recipeOrder.id}</p>
+                        <h2 className="font-bold text-lg text-foreground">{recipeOrder.customerName}</h2>
+                      </div>
+                      <button onClick={() => setRecipeOrder(null)} className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-lg font-bold">×</button>
+                    </div>
+
+                    {/* Recipe content */}
+                    <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+                      {(recipeOrder.items ?? []).map((item: any, idx: number) => {
+                        const menuItem = (recipeOrder.menuItems ?? []).find((m: any) => m.id === item.menuItemId);
+                        const sizeKey = item.size;
+                        const ingredients = sizeKey && menuItem?.sizeIngredients?.[sizeKey]?.length
+                          ? menuItem.sizeIngredients[sizeKey]
+                          : menuItem?.ingredients ?? [];
+                        const steps = sizeKey && menuItem?.sizePrepSteps?.[sizeKey]?.length
+                          ? menuItem.sizePrepSteps[sizeKey]
+                          : menuItem?.prepSteps ?? menuItem?.prep_steps ?? [];
+                        return (
+                          <div key={idx} className="space-y-2">
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                              <span className="font-bold text-base text-foreground">{item.quantity}× {item.menuItemName}</span>
+                              {item.size && <span className="text-sm text-muted-foreground">({item.size})</span>}
+                              {item.temperature === "hot" && <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">🔥 Hot</span>}
+                              {item.temperature === "cold" && <span className="text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">❄️ Cold</span>}
+                            </div>
+                            {item.lotusBase && <p className="text-sm text-lime-700 font-medium">⚡ Lotus Base: {item.lotusBase}</p>}
+                            {item.milk && <p className="text-sm text-blue-700 font-medium">🥛 Milk: {item.milk}</p>}
+                            {item.specialInstructions && (
+                              <p className="text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 flex gap-2 items-start">
+                                <MessageSquare className="h-3.5 w-3.5 shrink-0 mt-0.5" />{item.specialInstructions}
+                              </p>
+                            )}
+                            {(ingredients.length > 0 || steps.length > 0) ? (
+                              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-2">
+                                <p className="text-[11px] font-bold text-blue-500 uppercase tracking-wider flex items-center gap-1">
+                                  <ChefHat className="h-3 w-3" /> Recipe
+                                </p>
+                                {ingredients.length > 0 && (
+                                  <ul className="space-y-0.5">
+                                    {ingredients.map((ing: any, i: number) => (
+                                      <li key={i} className="text-sm text-blue-800 flex gap-2">
+                                        <span className="text-blue-400 shrink-0">•</span>
+                                        <span>{ing.amount && <strong>{ing.amount}</strong>} {ing.name}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                                {steps.length > 0 && (
+                                  <ol className="space-y-1 mt-1">
+                                    {steps.map((step: any, i: number) => (
+                                      <li key={i} className="text-sm text-blue-800 flex gap-2">
+                                        <span className="font-bold text-blue-500 shrink-0 tabular-nums w-5">{step.stepNumber ?? i + 1}.</span>
+                                        <span>{step.instruction}</span>
+                                      </li>
+                                    ))}
+                                  </ol>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground italic">No recipe on file for this item.</p>
+                            )}
+                            {idx < (recipeOrder.items ?? []).length - 1 && <hr className="border-border/60" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Mark Ready button */}
+                    <div className="px-5 pb-5 pt-3 border-t border-border/60 shrink-0">
+                      <Button
+                        className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-sm"
+                        disabled={bumpPending}
+                        onClick={() => {
+                          handleBump(recipeOrder.id, recipeOrder.customerName);
+                          setRecipeOrder(null);
+                        }}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Ready
+                      </Button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
           </TabsContent>
 

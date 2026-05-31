@@ -5,7 +5,9 @@ import { supabase, setCors, err } from "./_utils";
 function toClient(row: Record<string, unknown>) {
   return {
     ...row,
+    // camelCase aliases the dashboard/frontend expects
     sizePrices: row.size_prices,
+    prepSteps: row.prep_steps,        // used by recipe cards on owner dashboard
     sizePrepSteps: row.size_prep_steps,
     sizeIngredients: row.size_ingredients,
     modifierIds: row.modifier_ids,
