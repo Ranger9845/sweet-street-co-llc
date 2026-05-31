@@ -1,9 +1,8 @@
 import { OwnerLayout } from "@/components/layout/owner-layout";
 import {
-  useGetOrderStats, useListOrders, useBumpOrder, useUpdateOrderStatus,
-  getListOrdersQueryKey, getGetOrderStatsQueryKey,
+  useGetOrderStats, useListOrders, getListOrdersQueryKey,
+  getGetOrderStatsQueryKey,
   useGetSettings, useUpdateSettings, getGetSettingsQueryKey,
-  setExtraHeaders,
 } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1268,11 +1267,6 @@ export default function Dashboard() {
   const liveCarts = useLiveCarts(password);
   useOrderEvents();
 
-  // Sync owner password into the shared API client so useBumpOrder /
-  // useUpdateOrderStatus include x-owner-password on every request.
-  useEffect(() => {
-    setExtraHeaders(password ? { "x-owner-password": password } : {});
-  }, [password]);
 
   const { data: stats, isLoading: statsLoading } = useGetOrderStats({
     query: { queryKey: getGetOrderStatsQueryKey(), refetchInterval: 5000, refetchIntervalInBackground: true }
@@ -1287,8 +1281,6 @@ export default function Dashboard() {
     query: { queryKey: getListOrdersQueryKey({ status: "ready" }), refetchInterval: 5000, refetchIntervalInBackground: true }
   });
 
-  const bumpOrder = useBumpOrder();
-  const updateStatus = useUpdateOrderStatus();
 
   // Mr. Krabs auto-bump — fires every 90s, refreshes order lists on bump
   useAutoBump(password, useCallback((result: AutoBumpResult) => {
@@ -1321,35 +1313,54 @@ export default function Dashboard() {
     else if (result === "denied") toast({ title: "Notifications blocked", variant: "destructive" });
   };
 
-  const handleBump = (id: number, customerName: string) => {
-    bumpOrder.mutate({ id }, {
-      onSuccess: () => {
-        toast({ title: "Order advanced", description: `${customerName}'s order moved to next step.` });
-        queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
-      },
-      onError: (e) => toast({ title: "Failed to update order", description: String(e), variant: "destructive" }),
-    });
+  const [bumpPending, setBumpPending] = useState(false);
+  const [updatePending, setUpdatePending] = useState(false);
+
+  const ownerHeaders = { "Content-Type": "application/json", "x-owner-password": password ?? "" };
+
+  const invalidateOrders = () => {
+    queryClient.invalidateQueries({ queryKey: ["listOrders"] });
+    queryClient.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
   };
-  const handleMarkPickedUp = (id: number, customerName: string, wasPaid: boolean) => {
-    updateStatus.mutate({ id, data: { status: "completed" } }, {
-      onSuccess: () => {
-        toast({ title: "Order complete", description: wasPaid ? `${customerName}'s order picked up.` : `${customerName} paid. Order complete.` });
-        queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
-      },
-      onError: (e) => toast({ title: "Failed to update order", description: String(e), variant: "destructive" }),
-    });
+
+  const handleBump = async (id: number, customerName: string) => {
+    setBumpPending(true);
+    try {
+      const res = await fetch(`/api/orders/${id}/bump`, { method: "POST", headers: ownerHeaders, body: "{}" });
+      if (!res.ok) throw new Error(`${res.status} — ${await res.text().catch(() => "")}`);
+      toast({ title: "Order advanced", description: `${customerName}'s order moved to next step.` });
+      invalidateOrders();
+    } catch (e) {
+      toast({ title: "Failed to update order", description: String(e), variant: "destructive" });
+    } finally {
+      setBumpPending(false);
+    }
   };
-  const handleUnbump = (id: number, customerName: string) => {
-    updateStatus.mutate({ id, data: { status: "pending" } }, {
-      onSuccess: () => {
-        toast({ title: "Moved back to Pending", description: `#${id} — ${customerName}` });
-        queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetOrderStatsQueryKey() });
-      },
-      onError: (e) => toast({ title: "Failed to update order", description: String(e), variant: "destructive" }),
-    });
+  const handleMarkPickedUp = async (id: number, customerName: string, wasPaid: boolean) => {
+    setUpdatePending(true);
+    try {
+      const res = await fetch(`/api/orders/${id}/status`, { method: "PATCH", headers: ownerHeaders, body: JSON.stringify({ status: "completed" }) });
+      if (!res.ok) throw new Error(`${res.status} — ${await res.text().catch(() => "")}`);
+      toast({ title: "Order complete", description: wasPaid ? `${customerName}'s order picked up.` : `${customerName} paid. Order complete.` });
+      invalidateOrders();
+    } catch (e) {
+      toast({ title: "Failed to update order", description: String(e), variant: "destructive" });
+    } finally {
+      setUpdatePending(false);
+    }
+  };
+  const handleUnbump = async (id: number, customerName: string) => {
+    setUpdatePending(true);
+    try {
+      const res = await fetch(`/api/orders/${id}/status`, { method: "PATCH", headers: ownerHeaders, body: JSON.stringify({ status: "pending" }) });
+      if (!res.ok) throw new Error(`${res.status} — ${await res.text().catch(() => "")}`);
+      toast({ title: "Moved back to Pending", description: `#${id} — ${customerName}` });
+      invalidateOrders();
+    } catch (e) {
+      toast({ title: "Failed to update order", description: String(e), variant: "destructive" });
+    } finally {
+      setUpdatePending(false);
+    }
   };
 
   const initialLoading = statsLoading || pendingLoading || preparingLoading || readyLoading;
@@ -1510,7 +1521,7 @@ export default function Dashboard() {
                     readyOrders?.map((order) => (
                       <OrderCard key={order.id} order={order} variant="ready" now={now}
                         onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
-                        bumpPending={bumpOrder.isPending} updatePending={updateStatus.isPending} />
+                        bumpPending={bumpPending} updatePending={updatePending} />
                     ))
                   )}
                 </AnimatePresence>
@@ -1531,7 +1542,7 @@ export default function Dashboard() {
                       pendingOrders?.map((order) => (
                         <OrderCard key={order.id} order={order} variant="pending" now={now}
                           onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
-                          bumpPending={bumpOrder.isPending} updatePending={updateStatus.isPending} />
+                          bumpPending={bumpPending} updatePending={updatePending} />
                       ))
                     )}
                   </AnimatePresence>
@@ -1550,7 +1561,7 @@ export default function Dashboard() {
                       preparingOrders?.map((order) => (
                         <OrderCard key={order.id} order={order} variant="preparing" now={now}
                           onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
-                          bumpPending={bumpOrder.isPending} updatePending={updateStatus.isPending} />
+                          bumpPending={bumpPending} updatePending={updatePending} />
                       ))
                     )}
                   </AnimatePresence>
