@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useGetSettings } from "@workspace/api-client-react";
 import { useOwnerAuth } from "@/components/owner-auth-provider";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,25 +10,35 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function OwnerLogin() {
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
-  const { login } = useOwnerAuth();
-  const { data: settings } = useGetSettings();
+  const { loginDirect } = useOwnerAuth();
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!settings) return;
-
-    const success = login(password, settings.ownerPassword);
-    if (success) {
-      setLocation("/owner");
-    } else {
-      toast({
-        title: "Incorrect Password",
-        description: "The password you entered is incorrect.",
-        variant: "destructive"
+    if (!password) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/owner/verify", {
+        method: "POST",
+        headers: { "x-owner-password": password },
       });
-      setPassword("");
+      if (res.ok) {
+        loginDirect(password);
+        setLocation("/owner");
+      } else {
+        toast({
+          title: "Incorrect Password",
+          description: "The password you entered is incorrect.",
+          variant: "destructive",
+        });
+        setPassword("");
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server. Try again.", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,8 +73,12 @@ export default function OwnerLogin() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-primary text-white rounded-xl hover:bg-primary/90 shadow-sm font-medium transition-all duration-200" disabled={!settings || !password}>
-              Access Dashboard
+            <Button
+              type="submit"
+              className="w-full bg-primary text-white rounded-xl hover:bg-primary/90 shadow-sm font-medium transition-all duration-200"
+              disabled={!password || loading}
+            >
+              {loading ? "Verifying…" : "Access Dashboard"}
             </Button>
           </CardFooter>
         </form>
