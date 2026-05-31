@@ -924,7 +924,7 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
                   <span className="font-semibold text-slate-600 tabular-nums">{item.quantity}×</span>
                   <span className="font-medium text-slate-800">{item.menuItemName}</span>
                   {item.size && <span className="text-slate-400">({item.size})</span>}
-                  <span className="ml-auto text-slate-500 font-medium tabular-nums">${(item.unitPrice * item.quantity).toFixed(2)}</span>
+                  <span className="ml-auto text-slate-500 font-medium tabular-nums">${((item.unitPrice ?? 0) * (item.quantity ?? 1)).toFixed(2)}</span>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-0.5 ml-4">
                   {item.temperature === "hot" && <span className="bg-orange-100 text-orange-700 rounded px-1 py-0.5 leading-none">🔥 Hot</span>}

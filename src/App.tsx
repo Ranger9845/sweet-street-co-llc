@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import React from "react";
+import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,7 +9,7 @@ import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import NotFound from "@/pages/not-found";
-import { OwnerAuthProvider } from "@/components/owner-auth-provider";
+import { OwnerAuthProvider, useOwnerAuth } from "@/components/owner-auth-provider";
 import { SplashScreen } from "@/components/splash-screen";
 
 // Customer pages
@@ -84,6 +85,19 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function OwnerRoute({ component: Component }: { component: React.ComponentType }) {
+  const { isOwner, verifying } = useOwnerAuth();
+  if (verifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+  if (!isOwner) return <Redirect to="/owner/login" />;
+  return <Component />;
+}
+
 function Router() {
   return (
     <Switch>
@@ -99,17 +113,17 @@ function Router() {
 
       {/* Owner routes */}
       <Route path="/owner/login" component={OwnerLogin} />
-      <Route path="/owner/orders/:id" component={OrderDetail} />
-      <Route path="/owner/orders" component={PastOrders} />
-      <Route path="/owner/menu" component={MenuManagement} />
-      <Route path="/owner/discounts" component={Discounts} />
-      <Route path="/owner/rewards" component={RewardsManagement} />
-      <Route path="/owner/reviews" component={ReviewsManagement} />
-      <Route path="/owner/pos" component={OwnerPOS} />
-      <Route path="/owner/pos-setup" component={POSSetup} />
-      <Route path="/owner/settings" component={Settings} />
-      <Route path="/owner/square-pos-result" component={SquarePOSResult} />
-      <Route path="/owner" component={OwnerDashboard} />
+      <Route path="/owner/orders/:id">{() => <OwnerRoute component={OrderDetail} />}</Route>
+      <Route path="/owner/orders">{() => <OwnerRoute component={PastOrders} />}</Route>
+      <Route path="/owner/menu">{() => <OwnerRoute component={MenuManagement} />}</Route>
+      <Route path="/owner/discounts">{() => <OwnerRoute component={Discounts} />}</Route>
+      <Route path="/owner/rewards">{() => <OwnerRoute component={RewardsManagement} />}</Route>
+      <Route path="/owner/reviews">{() => <OwnerRoute component={ReviewsManagement} />}</Route>
+      <Route path="/owner/pos">{() => <OwnerRoute component={OwnerPOS} />}</Route>
+      <Route path="/owner/pos-setup">{() => <OwnerRoute component={POSSetup} />}</Route>
+      <Route path="/owner/settings">{() => <OwnerRoute component={Settings} />}</Route>
+      <Route path="/owner/square-pos-result">{() => <OwnerRoute component={SquarePOSResult} />}</Route>
+      <Route path="/owner">{() => <OwnerRoute component={OwnerDashboard} />}</Route>
 
       <Route component={NotFound} />
     </Switch>
