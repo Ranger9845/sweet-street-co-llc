@@ -17,9 +17,15 @@ export function setCors(res: VercelResponse) {
 export async function requireOwner(req: VercelRequest): Promise<boolean> {
   const pw = req.headers["x-owner-password"] as string | undefined;
   if (!pw) return false;
-  const sb = supabase();
-  const { data } = await sb.from("settings").select("owner_password").eq("id", 1).maybeSingle();
-  return data?.owner_password === pw;
+  try {
+    const sb = supabase();
+    const { data } = await sb.from("settings").select("owner_password").eq("id", 1).maybeSingle();
+    // Fall back to env var or default when no settings row exists
+    const stored = data?.owner_password ?? process.env.OWNER_PASSWORD ?? "owner123";
+    return stored === pw;
+  } catch {
+    return false;
+  }
 }
 
 export function err(res: VercelResponse, status: number, message: string) {
