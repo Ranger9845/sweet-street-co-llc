@@ -90,8 +90,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!data) {
       return res.json({
-        isOpen: true, shopName: "Sweet Street Co.", siteDescription: "", readyMessage: "Your order is ready!",
-        announcementEnabled: false, announcementText: "",
+        isOpen: false, ownerPassword: process.env.OWNER_PASSWORD ?? "owner123",
+        shopName: "Sweet Street Co.", siteDescription: "", readyMessage: "Your order is ready!",
+        announcementEnabled: true,
+        announcementText: "Our website will be temporarily unavailable for the next couple of days as we transition to a new service provider to ensure a more reliable and seamless experience. The current provider has experienced frequent outages, and we are taking this step to maintain a higher standard of professionalism and performance. During this migration, the site will remain online but non-responsive until the transition is complete. Thank you for your patience as we work to improve your experience.",
         happyHourEnabled: false, happyHourStart: "15:00", happyHourEnd: "17:00",
         happyHourDiscountType: "percent", happyHourDiscountValue: "50",
       });
