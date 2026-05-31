@@ -11,6 +11,7 @@ import { AnimatePresence } from "framer-motion";
 import NotFound from "@/pages/not-found";
 import { OwnerAuthProvider, useOwnerAuth } from "@/components/owner-auth-provider";
 import { SplashScreen } from "@/components/splash-screen";
+import { Analytics } from "@vercel/analytics/react";
 
 // Customer pages
 import Home from "@/pages/home";
@@ -188,6 +189,7 @@ function App() {
           <ClerkProviderWithRoutes />
         </WouterRouter>
       </OwnerAuthProvider>
+      <Analytics />
     </>
   );
 }
