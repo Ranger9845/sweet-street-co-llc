@@ -36,8 +36,10 @@ import SquarePOSResult from "@/pages/owner/square-pos-result";
 
 const queryClient = new QueryClient();
 
-const rawClerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-const clerkPubKey = typeof rawClerkPubKey === "string" && rawClerkPubKey.trim().length > 0 ? rawClerkPubKey : undefined;
+// Publishable keys are intentionally public — safe to hardcode as production fallback
+const PRODUCTION_CLERK_KEY = "pk_live_Y2xlcmsuc3dlZXRzdHJlZXRjby5jb20k";
+const rawClerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || PRODUCTION_CLERK_KEY;
+const clerkPubKey = typeof rawClerkPubKey === "string" && rawClerkPubKey.startsWith("pk_live_") ? rawClerkPubKey : PRODUCTION_CLERK_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL || undefined;
 
 const clerkKeyIsValid = typeof clerkPubKey === "string" && /^(pk_test_|pk_live_)[A-Za-z0-9_-]{20,}$/.test(clerkPubKey);
