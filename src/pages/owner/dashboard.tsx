@@ -2,7 +2,7 @@ import { OwnerLayout } from "@/components/layout/owner-layout";
 import {
   useGetOrderStats, useListOrders, useListMenuItems, getListOrdersQueryKey,
   getGetOrderStatsQueryKey,
-  useGetSettings, useUpdateSettings, getGetSettingsQueryKey,
+  useGetSettings, getGetSettingsQueryKey,
 } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -201,26 +201,37 @@ function useRevenueChart(intervalMs = 30_000) {
 function OpenCloseToggle() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { password } = useOwnerAuth();
   const { data: settings } = useGetSettings({
     query: { queryKey: getGetSettingsQueryKey(), refetchInterval: 15000 }
   });
-  const updateSettings = useUpdateSettings();
+  const [toggling, setToggling] = useState(false);
 
   const isOpen = settings?.isOpen ?? true;
-  const toggling = updateSettings.isPending;
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
     const newVal = !isOpen;
-    updateSettings.mutate({ isOpen: newVal }, {
-      onSuccess: () => {
+    setToggling(true);
+    try {
+      const r = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-owner-password": password ?? "" },
+        body: JSON.stringify({ isOpen: newVal }),
+      });
+      if (r.ok) {
         queryClient.invalidateQueries({ queryKey: getGetSettingsQueryKey() });
         toast({
           title: newVal ? "Shop is now OPEN" : "Shop is now CLOSED",
           description: newVal ? "Customers can place orders." : "Orders are paused for customers.",
         });
-      },
-      onError: () => toast({ title: "Failed to update", variant: "destructive" }),
-    });
+      } else {
+        toast({ title: "Failed to update", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to update", variant: "destructive" });
+    } finally {
+      setToggling(false);
+    }
   };
 
   return (
