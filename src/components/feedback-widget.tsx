@@ -123,6 +123,7 @@ export function FeedbackWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           issue: issueLabel,
+          issueId: selectedIssue,
           message: message.trim() || null,
           name: name.trim() || null,
           email: email.trim() || null,

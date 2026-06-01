@@ -7,12 +7,17 @@ const FROM_ADDRESS = "Sweet Street <noreply@sweetstreetco.com>";
 
 const BUG_KEYWORDS = [
   "bug", "error", "broken", "doesn't work", "doesnt work", "not working",
-  "can't", "cant", "won't", "wont", "issue", "problem", "fix", "crash",
-  "fail", "404", "500", "wrong", "missing", "blank", "loading", "stuck",
-  "slow", "timeout", "won't load", "wont load", "won't open", "freezing",
+  "isn't working", "isnt working", "can't", "cant", "won't", "wont",
+  "issue", "problem", "fix", "crash", "fail", "404", "500", "wrong",
+  "missing", "blank", "loading", "stuck", "slow", "timeout", "freezing",
+  "payment", "won't load", "wont load", "won't open", "doesn't load",
 ];
 
-function looksLikeBugReport(text: string): boolean {
+// Preset issue IDs from the feedback widget that always indicate a bug
+const BUG_ISSUE_IDS = new Set(["app_broken", "payment_issue", "order_wrong", "missing_item"]);
+
+function looksLikeBugReport(text: string, issueId?: string | null): boolean {
+  if (issueId && BUG_ISSUE_IDS.has(issueId)) return true;
   const lower = text.toLowerCase();
   return BUG_KEYWORDS.some((kw) => lower.includes(kw));
 }
@@ -156,7 +161,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  if (looksLikeBugReport(fullMessage)) {
+  const issueId: string | null = body.issueId ?? null;
+  if (looksLikeBugReport(fullMessage, issueId)) {
     createGitHubIssue(name, rating, fullMessage, email).catch(() => {});
   }
 
