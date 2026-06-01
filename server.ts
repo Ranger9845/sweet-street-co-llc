@@ -35,6 +35,7 @@ import posCategoriesHandler from "./api/pos/categories.js";
 import posItemAssignmentsHandler from "./api/pos-item-assignments.js";
 import adminDailySummaryHandler from "./api/admin/daily-summary/send.js";
 import ownerVerifyHandler from "./api/owner/verify.js";
+import authVerifyOwnerHandler from "./api/auth/verify-owner.js";
 
 const app = express();
 app.use(express.json());
@@ -110,6 +111,7 @@ app.all("/api/admin/daily-summary/send", adapt(adminDailySummaryHandler));
 
 // Auth
 app.all("/api/owner/verify", adapt(ownerVerifyHandler));
+app.all("/api/auth/verify-owner", adapt(authVerifyOwnerHandler));
 
 // SSE endpoint — pushes a heartbeat every 15s so the order board
 // invalidates its queries and stays live without polling overhead.
