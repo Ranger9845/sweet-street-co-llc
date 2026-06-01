@@ -1,5 +1,5 @@
 import { OwnerLayout } from "@/components/layout/owner-layout";
-import { useGetSettings, useUpdateSettings, getGetSettingsQueryKey } from "@workspace/api-client-react";
+import { useGetSettings, getGetSettingsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ export default function Settings() {
     query: { queryKey: getGetSettingsQueryKey() }
   });
 
-  const updateSettings = useUpdateSettings();
+  const [saving, setSaving] = useState(false);
 
   const [shopName, setShopName] = useState("");
   const [siteDescription, setSiteDescription] = useState("");
@@ -91,39 +91,45 @@ export default function Settings() {
     }
   };
 
-  const handleSave = () => {
-    updateSettings.mutate({
-      data: {
-        shopName,
-        siteDescription,
-        readyMessage,
-        ownerPassword,
-        isOpen,
-        announcementEnabled,
-        announcementText,
-        happyHourEnabled,
-        happyHourStart,
-        happyHourEnd,
-        happyHourDiscountType,
-        happyHourDiscountValue,
-        posAccentColor,
-        posBgColor,
-        posCardColor,
-        posForegroundColor,
-        posMutedColor,
-        posBorderColor,
-        posHeaderText,
-        posButtonRadius,
-      }
-    }, {
-      onSuccess: () => {
-        toast({
-          title: "Settings Saved",
-          description: "Shop settings have been updated successfully.",
-        });
-        queryClient.invalidateQueries({ queryKey: getGetSettingsQueryKey() });
-      }
-    });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-owner-password": ownerPw },
+        body: JSON.stringify({
+          data: {
+            shopName,
+            siteDescription,
+            readyMessage,
+            ownerPassword,
+            isOpen,
+            announcementEnabled,
+            announcementText,
+            happyHourEnabled,
+            happyHourStart,
+            happyHourEnd,
+            happyHourDiscountType,
+            happyHourDiscountValue,
+            posAccentColor,
+            posBgColor,
+            posCardColor,
+            posForegroundColor,
+            posMutedColor,
+            posBorderColor,
+            posHeaderText,
+            posButtonRadius,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      toast({ title: "Settings Saved", description: "Shop settings have been updated successfully." });
+      queryClient.invalidateQueries({ queryKey: getGetSettingsQueryKey() });
+    } catch {
+      toast({ title: "Save Failed", description: "Could not save settings. Please try again.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -530,10 +536,10 @@ export default function Settings() {
         <div className="flex justify-end pb-8">
           <Button
             onClick={handleSave}
-            disabled={updateSettings.isPending}
+            disabled={saving}
             className="w-full md:w-auto"
           >
-            {updateSettings.isPending ? "Saving..." : "Save All Settings"}
+            {saving ? "Saving..." : "Save All Settings"}
           </Button>
         </div>
       </div>

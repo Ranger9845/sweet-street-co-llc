@@ -15,7 +15,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq("approved", "approved")
       .order("created_at", { ascending: false });
     if (error) return err(res, 500, error.message);
-    return res.json(data ?? []);
+    return res.json(
+      (data ?? []).map((r: Record<string, unknown>) => ({
+        id: r.id,
+        reviewerName: r.reviewer_name,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.created_at,
+      }))
+    );
   }
 
   if (req.method === "POST") {
