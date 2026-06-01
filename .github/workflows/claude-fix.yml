@@ -12,6 +12,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -19,7 +20,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          direct_prompt: |
+          prompt: |
             A customer reported a problem with the Sweet Street dirty soda ordering app (sweetstreetco.com).
 
             Issue title: ${{ github.event.issue.title }}
