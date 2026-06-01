@@ -18,36 +18,36 @@ on:
         description: Clerk user ID for awarding points
         required: false
         default: ""
-  issues:
-    types: [labeled]
+  push:
+    branches:
+      - notify-customer
+    paths:
+      - '.github/notify.json'
 
 jobs:
   notify:
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issues' && github.event.label.name == 'notify-fix')
     runs-on: ubuntu-latest
     permissions:
-      issues: write
+      contents: read
     steps:
+      - name: Checkout
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4
+        with:
+          ref: notify-customer
+
       - name: Extract params
         id: params
         uses: actions/github-script@v7
         with:
           script: |
-            if (context.eventName === 'issues') {
-              const to = context.payload.issue.title;
-              let clerkUserId = '', issueTitle = '', customerName = '';
-              try {
-                const parsed = JSON.parse(context.payload.issue.body || '{}');
-                clerkUserId = parsed.clerkUserId || '';
-                issueTitle = parsed.issueTitle || '';
-                customerName = parsed.customerName || '';
-              } catch {}
-              core.setOutput('to', to);
-              core.setOutput('clerkUserId', clerkUserId);
-              core.setOutput('issueTitle', issueTitle);
-              core.setOutput('customerName', customerName);
+            if (context.eventName === 'push') {
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync('.github/notify.json', 'utf8'));
+              core.setOutput('to', data.to);
+              core.setOutput('clerkUserId', data.clerkUserId || '');
+              core.setOutput('issueTitle', data.issueTitle || '');
+              core.setOutput('customerName', data.customerName || '');
             } else {
               core.setOutput('to', '${{ inputs.to }}');
               core.setOutput('clerkUserId', '${{ inputs.clerkUserId }}');
@@ -68,16 +68,3 @@ jobs:
               '{to: $to, customerName: $name, issueTitle: $issue, clerkUserId: $clerk}')" \
             | tee /tmp/result.json
           cat /tmp/result.json | grep -q '"ok":true' && echo "Email sent successfully" || { echo "Email send failed"; cat /tmp/result.json; exit 1; }
-
-      - name: Close trigger issue
-        if: github.event_name == 'issues'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.issue.number,
-              state: 'closed',
-              state_reason: 'completed'
-            });
