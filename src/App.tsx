@@ -7,7 +7,6 @@ import { CartProvider } from "@/components/cart-provider";
 import { CartFlyProvider } from "@/components/cart-fly";
 import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
 import NotFound from "@/pages/not-found";
 import { OwnerAuthProvider, useOwnerAuth } from "@/components/owner-auth-provider";
 import { SplashScreen } from "@/components/splash-screen";
@@ -182,9 +181,7 @@ function App() {
 
   return (
     <>
-      <AnimatePresence>
-        {showSplash && <SplashScreen visible={showSplash} onDone={() => setShowSplash(false)} />}
-      </AnimatePresence>
+      <SplashScreen visible={showSplash} onDone={() => setShowSplash(false)} />
       <OwnerAuthProvider>
         <WouterRouter base={basePath}>
           <ClerkProviderWithRoutes />
