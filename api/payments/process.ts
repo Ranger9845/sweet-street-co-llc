@@ -24,7 +24,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select()
         .single();
       if (error) return err(res, 400, error.message);
-      return res.json(orderToClient(data as Record<string, unknown>));
+      const orderData = data as Record<string, unknown>;
+      if (orderData.clerk_user_id) {
+        const earned = Math.floor(Number(orderData.total_amount ?? 0));
+        if (earned > 0) {
+          sb.from("points_ledger").insert({
+            clerk_user_id: orderData.clerk_user_id,
+            points: earned,
+            type: "order",
+            description: `Order #${orderId}`,
+          }).then(() => {}).catch(() => {});
+        }
+      }
+      return res.json(orderToClient(orderData));
     }
     return res.json({ success: true });
   }
@@ -90,7 +102,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (updateErr) return err(res, 500, updateErr.message);
 
-    return res.json({ success: true, paymentId: squareData.payment?.id, order: orderToClient(updatedOrder as Record<string, unknown>) });
+    const paidOrder = updatedOrder as Record<string, unknown>;
+    if (paidOrder.clerk_user_id) {
+      const earned = Math.floor(Number(paidOrder.total_amount ?? 0));
+      if (earned > 0) {
+        sb.from("points_ledger").insert({
+          clerk_user_id: paidOrder.clerk_user_id,
+          points: earned,
+          type: "order",
+          description: `Order #${orderId}`,
+        }).then(() => {}).catch(() => {});
+      }
+    }
+
+    return res.json({ success: true, paymentId: squareData.payment?.id, order: orderToClient(paidOrder) });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Payment processing error";
     return err(res, 500, msg);
