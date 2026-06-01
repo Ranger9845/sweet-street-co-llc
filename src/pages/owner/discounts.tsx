@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { OwnerLayout } from "@/components/layout/owner-layout";
+import { useOwnerAuth } from "@/components/owner-auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ function discountBadgeColor(type: string) {
 }
 
 export default function Discounts() {
+  const { password } = useOwnerAuth();
   const { toast } = useToast();
   const [codes, setCodes] = useState<DiscountCode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,14 +61,16 @@ export default function Discounts() {
 
   const fetchCodes = async () => {
     try {
-      const res = await fetch("/api/discount-codes");
+      const res = await fetch("/api/discount-codes", {
+        headers: { "x-owner-token": password || "" },
+      });
       if (res.ok) setCodes(await res.json());
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchCodes(); }, []);
+  useEffect(() => { fetchCodes(); }, [password]);
 
   const handleCreate = async () => {
     if (!newCode.trim() || !newName.trim()) return;
@@ -74,7 +78,7 @@ export default function Discounts() {
     try {
       const res = await fetch("/api/discount-codes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-owner-token": password || "" },
         body: JSON.stringify({
           code: newCode.trim().toUpperCase(),
           schoolName: newName.trim(),
@@ -104,7 +108,7 @@ export default function Discounts() {
   const toggleActive = async (code: DiscountCode) => {
     const res = await fetch(`/api/discount-codes/${code.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-owner-token": password || "" },
       body: JSON.stringify({ active: !code.active }),
     });
     if (res.ok) {
@@ -114,7 +118,7 @@ export default function Discounts() {
   };
 
   const handleDelete = async (id: number) => {
-    const res = await fetch(`/api/discount-codes/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/discount-codes/${id}`, { method: "DELETE", headers: { "x-owner-token": password || "" } });
     if (res.ok || res.status === 204) {
       setCodes((prev) => prev.filter((c) => c.id !== id));
       toast({ title: "Code Deleted" });

@@ -12,7 +12,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isOwner) return err(res, 403, "Forbidden");
     const { data, error } = await sb.from("discount_codes").select("*").order("id");
     if (error) return err(res, 500, error.message);
-    return res.json(data ?? []);
+    return res.json(
+      (data ?? []).map((d: Record<string, unknown>) => ({
+        id: d.id,
+        code: d.code,
+        schoolName: d.school_name,
+        discountType: d.discount_type,
+        discountAmount: d.discount_amount,
+        active: d.active,
+        createdAt: d.created_at,
+      }))
+    );
   }
 
   if (req.method === "POST") {

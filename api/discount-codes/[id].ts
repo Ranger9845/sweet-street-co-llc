@@ -22,7 +22,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (body.discountAmount !== undefined) fields.discount_amount = body.discountAmount;
     const { data, error } = await sb.from("discount_codes").update(fields).eq("id", id).select().single();
     if (error) return err(res, 400, error.message);
-    return res.json(data);
+    const d = data as Record<string, unknown>;
+    return res.json({
+      id: d.id,
+      code: d.code,
+      schoolName: d.school_name,
+      discountType: d.discount_type,
+      discountAmount: d.discount_amount,
+      active: d.active,
+      createdAt: d.created_at,
+    });
   }
 
   if (req.method === "DELETE") {
