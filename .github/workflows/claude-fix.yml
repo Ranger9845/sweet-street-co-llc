@@ -1,8 +1,7 @@
 name: Claude Auto-Fix Customer Issues
 
 on:
-  issues:
-    types: [opened]
+  workflow_dispatch: # manual trigger only — handled by the hourly claude.ai scheduled routine instead
 
 jobs:
   claude-fix:
