@@ -1,0 +1,40 @@
+name: Claude Auto-Fix Customer Issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  claude-fix:
+    if: contains(github.event.issue.labels.*.name, 'customer-feedback')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Claude Code Action Official
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            A customer reported a problem with the Sweet Street dirty soda ordering app (sweetstreetco.com).
+
+            Issue title: ${{ github.event.issue.title }}
+            Customer feedback: ${{ github.event.issue.body }}
+
+            The app is:
+            - React + Vite frontend (src/) deployed on Vercel
+            - Express API (api/ + server.ts) deployed on Render at sweet-street-co-llc.onrender.com
+            - Supabase database
+            - Clerk for customer auth
+
+            Please:
+            1. Read the feedback and determine if it points to a specific, reproducible bug in the code
+            2. If yes, find the relevant file(s) and apply a minimal fix
+            3. Open a pull request with the fix and a short description of what you changed and why
+            4. If the feedback is vague or not a code bug (e.g. "I don't like the colors"), add a comment on the issue explaining that no code change is needed
+
+            Focus on api/ and src/ directories. Do not touch package.json, vercel.json, or deployment config unless the bug is clearly there.
