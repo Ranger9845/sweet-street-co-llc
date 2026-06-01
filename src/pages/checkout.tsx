@@ -130,10 +130,40 @@ export default function Checkout() {
   const [celebrationReward, setCelebrationReward] = useState<RewardInfo>(null);
   const [celebrationMsg, setCelebrationMsg] = useState("");
 
+  // Square loyalty balance shown next to phone field
+  const [phoneLoyaltyBalance, setPhoneLoyaltyBalance] = useState<number | null>(null);
+  const phoneLookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const triggerRewardCelebration = (r: NonNullable<RewardInfo>) => {
     setAppliedReward(r);
     setCelebrationReward(r);
     setCelebrationMsg(BUDDY_MESSAGES[Math.floor(Math.random() * BUDDY_MESSAGES.length)]);
+  };
+
+  /** Normalize a raw phone string to E.164 (+1XXXXXXXXXX), or return empty string. */
+  const normalizePhoneClient = (raw: string): string => {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length === 10) return `+1${digits}`;
+    if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+    return "";
+  };
+
+  /** Debounced loyalty balance lookup triggered by phone field changes. */
+  const lookupPhoneLoyalty = (rawPhone: string) => {
+    if (phoneLookupTimer.current) clearTimeout(phoneLookupTimer.current);
+    const normalized = normalizePhoneClient(rawPhone);
+    if (!normalized) { setPhoneLoyaltyBalance(null); return; }
+    phoneLookupTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/loyalty/account?phone=${encodeURIComponent(normalized)}`);
+        if (res.ok) {
+          const data = await res.json() as { found: boolean; balance: number };
+          setPhoneLoyaltyBalance(data.found ? data.balance : 0);
+        }
+      } catch {
+        // Silently ignore — balance display is non-critical
+      }
+    }, 600);
   };
 
   useEffect(() => {
@@ -653,7 +683,23 @@ export default function Checkout() {
                   <FormField control={form.control} name="customerPhone" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
-                      <FormControl><Input type="tel" placeholder="(801) 555-1234" {...field} className="rounded-xl bg-white/80 border-border/40" /></FormControl>
+                      <FormControl>
+                        <Input
+                          type="tel"
+                          placeholder="(801) 555-1234"
+                          {...field}
+                          className="rounded-xl bg-white/80 border-border/40"
+                          onChange={(e) => {
+                            field.onChange(e);
+                            lookupPhoneLoyalty(e.target.value);
+                          }}
+                        />
+                      </FormControl>
+                      {phoneLoyaltyBalance !== null && (
+                        <p className="text-xs text-blue-700 flex items-center gap-1 mt-1">
+                          🧊 You have <strong>{phoneLoyaltyBalance}</strong> ice cube{phoneLoyaltyBalance !== 1 ? "s" : ""}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )} />

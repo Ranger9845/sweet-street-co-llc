@@ -2,7 +2,8 @@ import { CustomerLayout } from "@/components/layout/customer-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Gift, Star, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Gift, Star, Clock, Phone } from "lucide-react";
 import { CupSpinner } from "@/components/cup-spinner";
 import { useState, useEffect, useRef } from "react";
 import { useUser, Show } from "@clerk/react";
@@ -19,21 +20,36 @@ type Reward = {
   active: boolean;
 };
 
-type PointsData = {
+type LoyaltyData = {
+  found: boolean;
   balance: number;
-  history: { id: number; points: number; type: string; description: string | null; createdAt: string }[];
+  lifetimePoints?: number;
 };
 
 const API = "/api";
+
+/** Normalize a raw phone string to E.164 (+1XXXXXXXXXX), or return empty string. */
+function normalizePhoneClient(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return "";
+}
 
 export default function Rewards() {
   const { user, isSignedIn } = useUser();
   const [, setLocation] = useLocation();
   const [rewards, setRewards] = useState<Reward[]>([]);
-  const [pointsData, setPointsData] = useState<PointsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loyaltyData, setLoyaltyData] = useState<LoyaltyData | null>(null);
+  const [loading, setLoading] = useState(false);
   const [celebratingId, setCelebratingId] = useState<number | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Guest phone lookup state
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestLookupLoading, setGuestLookupLoading] = useState(false);
+  const [guestLoyaltyData, setGuestLoyaltyData] = useState<LoyaltyData | null>(null);
+  const [guestLookupDone, setGuestLookupDone] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -45,15 +61,42 @@ export default function Rewards() {
     fetch(`${API}/rewards`).then(r => r.ok ? r.json() : []).then(setRewards).catch(() => {});
   }, []);
 
+  // Load loyalty balance for signed-in users using their Clerk phone number
   useEffect(() => {
-    if (!user?.id) { setPointsData(null); return; }
+    const phone = user?.primaryPhoneNumber?.phoneNumber;
+    if (!phone) {
+      setLoyaltyData(null);
+      return;
+    }
+    const normalized = normalizePhoneClient(phone);
+    if (!normalized) {
+      setLoyaltyData(null);
+      return;
+    }
     setLoading(true);
-    fetch(`${API}/points/${user.id}`)
+    fetch(`${API}/loyalty/account?phone=${encodeURIComponent(normalized)}`)
       .then(r => r.ok ? r.json() : null)
-      .then(setPointsData)
-      .catch(() => {})
+      .then((data: LoyaltyData | null) => setLoyaltyData(data))
+      .catch(() => setLoyaltyData(null))
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [user?.primaryPhoneNumber?.phoneNumber]);
+
+  const handleGuestLookup = async () => {
+    const normalized = normalizePhoneClient(guestPhone);
+    if (!normalized) return;
+    setGuestLookupLoading(true);
+    setGuestLookupDone(false);
+    try {
+      const res = await fetch(`${API}/loyalty/account?phone=${encodeURIComponent(normalized)}`);
+      const data: LoyaltyData = res.ok ? await res.json() : { found: false, balance: 0 };
+      setGuestLoyaltyData(data);
+    } catch {
+      setGuestLoyaltyData({ found: false, balance: 0 });
+    } finally {
+      setGuestLookupLoading(false);
+      setGuestLookupDone(true);
+    }
+  };
 
   const handleUseReward = (rewardId: number) => {
     if (celebratingId !== null) return;
@@ -65,6 +108,7 @@ export default function Rewards() {
   };
 
   const activeRewards = rewards.filter(r => r.active);
+  const displayBalance = loyaltyData?.balance ?? 0;
 
   return (
     <CustomerLayout>
@@ -77,6 +121,7 @@ export default function Rewards() {
           </p>
         </section>
 
+        {/* Signed-in balance card */}
         <Show when="signed-in">
           {loading ? (
             <Card className="p-8 text-center">
@@ -87,8 +132,16 @@ export default function Rewards() {
               <CardContent className="pt-6 pb-6 flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground font-medium">Your Ice Cube Balance</p>
-                  <p className="text-4xl font-bold text-primary-foreground mt-1">{pointsData?.balance ?? 0}</p>
+                  <p className="text-4xl font-bold text-primary-foreground mt-1">{displayBalance}</p>
                   <p className="text-xs text-muted-foreground mt-1">ice cubes available</p>
+                  {loyaltyData?.lifetimePoints !== undefined && loyaltyData.lifetimePoints > 0 && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{loyaltyData.lifetimePoints} lifetime cubes earned</p>
+                  )}
+                  {!loyaltyData?.found && (
+                    <p className="text-xs text-muted-foreground mt-1 italic">
+                      No loyalty account yet — earn cubes on your next order!
+                    </p>
+                  )}
                 </div>
                 <Star className="h-16 w-16 text-primary/20" />
               </CardContent>
@@ -96,16 +149,60 @@ export default function Rewards() {
           )}
         </Show>
 
+        {/* Guest balance lookup */}
         <Show when="signed-out">
           <Card className="bg-pink-50 border-pink-200">
-            <CardContent className="pt-6 pb-6 flex flex-col sm:flex-row items-center gap-4">
-              <div className="flex-1">
-                <p className="font-medium text-primary-foreground">Sign in to track your ice cubes and redeem rewards</p>
-                <p className="text-sm text-muted-foreground mt-1">Create an account to start earning ice cubes on every order.</p>
+            <CardContent className="pt-6 pb-6 space-y-4">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex-1">
+                  <p className="font-medium text-primary-foreground">Sign in to track your ice cubes and redeem rewards</p>
+                  <p className="text-sm text-muted-foreground mt-1">Create an account to start earning ice cubes on every order.</p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => setLocation("/sign-in")}>Sign in</Button>
+                  <Button size="sm" className="bg-primary text-primary-foreground" onClick={() => setLocation("/sign-up")}>Sign up</Button>
+                </div>
               </div>
-              <div className="flex gap-2 flex-shrink-0">
-                <Button size="sm" variant="outline" onClick={() => setLocation("/sign-in")}>Sign in</Button>
-                <Button size="sm" className="bg-primary text-primary-foreground" onClick={() => setLocation("/sign-up")}>Sign up</Button>
+
+              {/* Phone number lookup for guests */}
+              <div className="border-t border-pink-200 pt-4 space-y-3">
+                <p className="text-sm font-medium text-primary-foreground flex items-center gap-2">
+                  <Phone className="h-4 w-4" /> Check your balance by phone
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="tel"
+                    placeholder="(801) 555-1234"
+                    value={guestPhone}
+                    onChange={(e) => { setGuestPhone(e.target.value); setGuestLookupDone(false); }}
+                    className="rounded-xl bg-white/80 border-border/40"
+                    onKeyDown={(e) => e.key === "Enter" && handleGuestLookup()}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGuestLookup}
+                    disabled={guestLookupLoading || !guestPhone.trim()}
+                    className="shrink-0"
+                  >
+                    {guestLookupLoading ? <CupSpinner size={18} /> : "Look up"}
+                  </Button>
+                </div>
+                {guestLookupDone && guestLoyaltyData && (
+                  <div className={`rounded-lg px-4 py-3 text-sm ${guestLoyaltyData.found ? "bg-blue-50 border border-blue-200 text-blue-800" : "bg-muted/50 border border-border text-muted-foreground"}`}>
+                    {guestLoyaltyData.found ? (
+                      <>
+                        <span className="font-bold text-lg text-primary-foreground">{guestLoyaltyData.balance}</span>
+                        <span className="ml-1">ice cubes available</span>
+                        {guestLoyaltyData.lifetimePoints !== undefined && guestLoyaltyData.lifetimePoints > 0 && (
+                          <span className="ml-2 text-xs text-muted-foreground">({guestLoyaltyData.lifetimePoints} lifetime)</span>
+                        )}
+                      </>
+                    ) : (
+                      "No loyalty account found for that number. Earn cubes on your next order!"
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -121,7 +218,7 @@ export default function Rewards() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {activeRewards.map((r) => {
-                const canAfford = (pointsData?.balance ?? 0) >= r.pointsCost;
+                const canAfford = displayBalance >= r.pointsCost;
                 return (
                   <Card key={r.id} className="flex flex-col">
                     <CardHeader className="pb-3">
@@ -147,7 +244,7 @@ export default function Rewards() {
                           disabled={!canAfford || celebratingId !== null}
                           onClick={() => handleUseReward(r.id)}
                         >
-                          {canAfford ? "Use at Checkout" : `Need ${r.pointsCost - (pointsData?.balance ?? 0)} more cubes`}
+                          {canAfford ? "Use at Checkout" : `Need ${r.pointsCost - displayBalance} more cubes`}
                         </Button>
                       </Show>
                       <AnimatePresence>
@@ -171,34 +268,6 @@ export default function Rewards() {
             </div>
           )}
         </div>
-
-        <Show when="signed-in">
-          {pointsData && pointsData.history.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-serif font-bold text-primary-foreground">Recent Activity</h2>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="divide-y">
-                    {pointsData.history.map((entry) => (
-                      <div key={entry.id} className="flex justify-between items-center py-3">
-                        <div>
-                          <p className="text-sm font-medium">{entry.description || entry.type}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {new Date(entry.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <span className={`font-bold text-sm ${entry.points > 0 ? "text-green-600" : "text-red-500"}`}>
-                          {entry.points > 0 ? "+" : ""}{entry.points} cubes
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </Show>
       </div>
     </CustomerLayout>
   );

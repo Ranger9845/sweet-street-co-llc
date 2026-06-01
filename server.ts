@@ -39,6 +39,8 @@ import adminDailySummaryHandler from "./api/admin/daily-summary/send.js";
 import ownerVerifyHandler from "./api/owner/verify.js";
 import authVerifyOwnerHandler from "./api/auth/verify-owner.js";
 import sendFixEmailHandler from "./api/send-fix-email.js";
+import loyaltyAccountHandler from "./api/loyalty/account.js";
+import loyaltyAccumulateHandler from "./api/loyalty/accumulate.js";
 
 const app = express();
 app.use(express.json());
@@ -100,6 +102,10 @@ app.all("/api/visitors/count", adapt(visitorsCountHandler));
 // Payments
 app.all("/api/payments/config", adapt(paymentsConfigHandler));
 app.all("/api/payments/process", adapt(paymentsProcessHandler));
+
+// Square Loyalty
+app.all("/api/loyalty/account", adapt(loyaltyAccountHandler));
+app.all("/api/loyalty/accumulate", adapt(loyaltyAccumulateHandler));
 
 // Discount codes
 app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));

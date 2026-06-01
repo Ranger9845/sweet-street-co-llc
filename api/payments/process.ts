@@ -1,5 +1,37 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabase, setCors, orderToClient, err } from "../_utils";
+import {
+  getSquareBaseUrl,
+  normalizePhone,
+  searchLoyaltyAccount,
+  createLoyaltyAccount,
+  accumulateLoyaltyPoints,
+} from "../loyalty/_square-loyalty";
+
+/**
+ * Fire-and-forget: accumulate Square loyalty points for an order.
+ * Errors are silently swallowed so they never break payment responses.
+ */
+async function awardLoyaltyPoints(phone: string, orderId: string): Promise<void> {
+  const token = process.env.SQUARE_ACCESS_TOKEN;
+  if (!token) return;
+
+  const normalized = normalizePhone(phone);
+  if (!normalized) return;
+
+  try {
+    const baseUrl = getSquareBaseUrl();
+    let account = await searchLoyaltyAccount(baseUrl, token, normalized);
+    if (!account) {
+      account = await createLoyaltyAccount(baseUrl, token, normalized);
+    }
+    if (account) {
+      await accumulateLoyaltyPoints(baseUrl, token, account.id, String(orderId));
+    }
+  } catch (e) {
+    console.error("Square loyalty accumulate error:", e instanceof Error ? e.message : e);
+  }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
@@ -25,6 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .single();
       if (error) return err(res, 400, error.message);
       const orderData = data as Record<string, unknown>;
+      // Mirror points to Supabase ledger (Clerk-based, kept as fallback)
       if (orderData.clerk_user_id) {
         const earned = Math.floor(Number(orderData.total_amount ?? 0));
         if (earned > 0) {
@@ -35,6 +68,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             description: `Order #${orderId}`,
           }).then(() => {}).catch(() => {});
         }
+      }
+      // Award Square loyalty points by phone (fire-and-forget)
+      if (orderData.customer_phone) {
+        awardLoyaltyPoints(String(orderData.customer_phone), String(orderId));
       }
       return res.json(orderToClient(orderData));
     }
@@ -103,6 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (updateErr) return err(res, 500, updateErr.message);
 
     const paidOrder = updatedOrder as Record<string, unknown>;
+    // Mirror points to Supabase ledger (Clerk-based, kept as fallback)
     if (paidOrder.clerk_user_id) {
       const earned = Math.floor(Number(paidOrder.total_amount ?? 0));
       if (earned > 0) {
@@ -113,6 +151,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           description: `Order #${orderId}`,
         }).then(() => {}).catch(() => {});
       }
+    }
+    // Award Square loyalty points by phone (fire-and-forget)
+    if (paidOrder.customer_phone) {
+      awardLoyaltyPoints(String(paidOrder.customer_phone), String(orderId));
     }
 
     return res.json({ success: true, paymentId: squareData.payment?.id, order: orderToClient(paidOrder) });
