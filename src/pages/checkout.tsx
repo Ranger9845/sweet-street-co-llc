@@ -250,7 +250,7 @@ export default function Checkout() {
       const phone = user.primaryPhoneNumber?.phoneNumber || "";
       if (name) form.setValue("customerName", name);
       if (email) form.setValue("customerEmail", email);
-      if (phone) form.setValue("customerPhone", phone);
+      if (phone) { form.setValue("customerPhone", phone); lookupPhoneLoyalty(phone); }
     }
   }, [user, form]);
 
@@ -811,7 +811,7 @@ export default function Checkout() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-xl flex items-center gap-2">
                   🧊 Redeem Ice Cubes
-                  <span className="ml-auto text-sm font-normal text-muted-foreground">{pointsBalance} cubes</span>
+                  <span className="ml-auto text-sm font-normal text-muted-foreground">{pointsBalance + (phoneLoyaltyBalance ?? 0)} cubes</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
@@ -838,7 +838,7 @@ export default function Checkout() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {availableRewards.map(reward => {
-                      const canAfford = pointsBalance >= reward.pointsCost;
+                      const canAfford = (pointsBalance + (phoneLoyaltyBalance ?? 0)) >= reward.pointsCost;
                       return (
                         <button
                           key={reward.id}
