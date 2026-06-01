@@ -18,15 +18,66 @@ on:
         description: Clerk user ID for awarding points
         required: false
         default: ""
+  issues:
+    types: [labeled]
 
 jobs:
   notify:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.label.name == 'notify-fix')
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
+      - name: Extract params
+        id: params
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName === 'issues') {
+              const to = context.payload.issue.title;
+              let clerkUserId = '', issueTitle = '', customerName = '';
+              try {
+                const parsed = JSON.parse(context.payload.issue.body || '{}');
+                clerkUserId = parsed.clerkUserId || '';
+                issueTitle = parsed.issueTitle || '';
+                customerName = parsed.customerName || '';
+              } catch {}
+              core.setOutput('to', to);
+              core.setOutput('clerkUserId', clerkUserId);
+              core.setOutput('issueTitle', issueTitle);
+              core.setOutput('customerName', customerName);
+            } else {
+              core.setOutput('to', '${{ inputs.to }}');
+              core.setOutput('clerkUserId', '${{ inputs.clerkUserId }}');
+              core.setOutput('issueTitle', '${{ inputs.issueTitle }}');
+              core.setOutput('customerName', '${{ inputs.customerName }}');
+            }
+
       - name: Send fix email and award points
+        env:
+          TO: ${{ steps.params.outputs.to }}
+          CLERK_USER_ID: ${{ steps.params.outputs.clerkUserId }}
+          ISSUE_TITLE: ${{ steps.params.outputs.issueTitle }}
+          CUSTOMER_NAME: ${{ steps.params.outputs.customerName }}
         run: |
           curl -s -X POST https://sweet-street-co-llc.onrender.com/api/send-fix-email \
             -H "Content-Type: application/json" \
-            -d "{\"to\":\"${{ inputs.to }}\",\"customerName\":\"${{ inputs.customerName }}\",\"issueTitle\":\"${{ inputs.issueTitle }}\",\"clerkUserId\":\"${{ inputs.clerkUserId }}\"}" \
+            -d "$(jq -n --arg to "$TO" --arg name "$CUSTOMER_NAME" --arg issue "$ISSUE_TITLE" --arg clerk "$CLERK_USER_ID" \
+              '{to: $to, customerName: $name, issueTitle: $issue, clerkUserId: $clerk}')" \
             | tee /tmp/result.json
-          cat /tmp/result.json | grep -q '"ok":true' && echo "Email sent successfully" || echo "Email send failed"
+          cat /tmp/result.json | grep -q '"ok":true' && echo "Email sent successfully" || { echo "Email send failed"; cat /tmp/result.json; exit 1; }
+
+      - name: Close trigger issue
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              state: 'closed',
+              state_reason: 'completed'
+            });
