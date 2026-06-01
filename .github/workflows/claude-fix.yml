@@ -1,8 +1,7 @@
 name: Claude Auto-Fix Customer Issues
 
 on:
-  issues:
-    types: [opened, labeled]
+  workflow_dispatch: # disabled — no ANTHROPIC_API_KEY; hourly routine handles this instead
 
 jobs:
   claude-fix:
