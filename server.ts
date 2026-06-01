@@ -39,6 +39,7 @@ import adminDailySummaryHandler from "./api/admin/daily-summary/send.js";
 import ownerVerifyHandler from "./api/owner/verify.js";
 import authVerifyOwnerHandler from "./api/auth/verify-owner.js";
 import sendFixEmailHandler from "./api/send-fix-email.js";
+import feedbackAckHandler from "./api/feedback-ack.js";
 import loyaltyAccountHandler from "./api/loyalty/account.js";
 import loyaltyAccumulateHandler from "./api/loyalty/accumulate.js";
 
@@ -93,6 +94,7 @@ app.all("/api/points/:userId/unseen-earnings", adapt(pointsUnseenEarningsHandler
 app.all("/api/points/:userId/mark-earnings-seen", adapt(pointsMarkSeenHandler, ["userId"]));
 app.all("/api/points/:userId", adapt(pointsByUserHandler, ["userId"]));
 app.all("/api/feedback", adapt(feedbackHandler));
+app.all("/api/feedback-ack", adapt(feedbackAckHandler));
 app.all("/api/live-carts", adapt(liveCartsHandler));
 
 // Visitors

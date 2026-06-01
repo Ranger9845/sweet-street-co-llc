@@ -145,7 +145,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     if (ownerEmailError) console.error("Owner email failed:", ownerEmailError.message);
 
-    if (email) {
+    // For non-bug reports only — bug reports get their ack when Claude starts working on them
+    const isBug = looksLikeBugReport(fullMessage, issueId);
+    if (email && !isBug) {
       const { error: ackEmailError } = await resend.emails.send({
         from: FROM_ADDRESS,
         to: [email],
@@ -153,7 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         html: `
           <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
             <h2 style="color:#e85d04">Thanks, ${name}!</h2>
-            <p>We received your feedback and will look into it. If you reported a bug, we'll let you know when it's fixed.</p>
+            <p>We received your feedback and will look into it.</p>
             <p style="color:#888;font-size:13px">— Sweet Street, Meeker OK</p>
           </div>
         `,
