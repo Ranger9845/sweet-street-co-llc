@@ -16,6 +16,7 @@ import { DevNotificationModal } from "../dev-notification-modal";
 import { useVisitorHeartbeat } from "@/hooks/use-visitor-heartbeat";
 import { usePlatform } from "@/hooks/use-platform";
 import { ThemePicker } from "@/components/theme-picker";
+import { PhoneCaptureModal } from "@/components/phone-capture-modal";
 
 type Reward = {
   id: number;
@@ -257,6 +258,8 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
           />
         )}
       </AnimatePresence>
+
+      <PhoneCaptureModal />
 
       <footer className="mt-auto border-t border-white/30 bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">

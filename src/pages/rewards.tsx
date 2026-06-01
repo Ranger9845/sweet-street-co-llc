@@ -51,6 +51,9 @@ export default function Rewards() {
   const [celebratingId, setCelebratingId] = useState<number | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Resolved phone: Clerk primary OR saved in our DB
+  const [resolvedPhone, setResolvedPhone] = useState<string | null>(null);
+
   // Guest phone lookup state
   const [guestPhone, setGuestPhone] = useState("");
   const [guestLookupLoading, setGuestLookupLoading] = useState(false);
@@ -78,17 +81,30 @@ export default function Rewards() {
       .finally(() => setLoading(false));
   }, [user?.id]);
 
-  // Secondary: Square Loyalty balance by phone (if phone linked to Clerk account)
+  // Resolve phone: prefer Clerk primary phone, fall back to saved DB phone
   useEffect(() => {
-    const phone = user?.primaryPhoneNumber?.phoneNumber;
-    if (!phone) { setLoyaltyData(null); return; }
-    const normalized = normalizePhoneClient(phone);
+    const clerkPhone = user?.primaryPhoneNumber?.phoneNumber ?? null;
+    if (clerkPhone) {
+      setResolvedPhone(clerkPhone);
+      return;
+    }
+    if (!user?.id) { setResolvedPhone(null); return; }
+    fetch(`${API}/user/profile?clerkUserId=${encodeURIComponent(user.id)}`)
+      .then(r => r.ok ? r.json() : { phone_number: null })
+      .then((data: { phone_number: string | null }) => setResolvedPhone(data.phone_number))
+      .catch(() => setResolvedPhone(null));
+  }, [user?.id, user?.primaryPhoneNumber?.phoneNumber]);
+
+  // Secondary: Square Loyalty balance by resolved phone
+  useEffect(() => {
+    if (!resolvedPhone) { setLoyaltyData(null); return; }
+    const normalized = normalizePhoneClient(resolvedPhone);
     if (!normalized) { setLoyaltyData(null); return; }
     fetch(`${API}/loyalty/account?phone=${encodeURIComponent(normalized)}`)
       .then(r => r.ok ? r.json() : null)
       .then((data: LoyaltyData | null) => setLoyaltyData(data))
       .catch(() => setLoyaltyData(null));
-  }, [user?.primaryPhoneNumber?.phoneNumber]);
+  }, [resolvedPhone]);
 
   const handleGuestLookup = async () => {
     const normalized = normalizePhoneClient(guestPhone);

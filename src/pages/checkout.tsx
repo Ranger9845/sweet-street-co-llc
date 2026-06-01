@@ -254,6 +254,20 @@ export default function Checkout() {
     }
   }, [user, form]);
 
+  // If Clerk has no phone, check our DB for a saved profile phone and pre-fill
+  useEffect(() => {
+    if (!user?.id || user.primaryPhoneNumber?.phoneNumber) return;
+    fetch(`/api/user/profile?clerkUserId=${encodeURIComponent(user.id)}`)
+      .then((r) => r.ok ? r.json() : { phone_number: null })
+      .then((data: { phone_number: string | null }) => {
+        if (data.phone_number && !form.getValues("customerPhone")) {
+          form.setValue("customerPhone", data.phone_number);
+          lookupPhoneLoyalty(data.phone_number);
+        }
+      })
+      .catch(() => {});
+  }, [user?.id, user?.primaryPhoneNumber?.phoneNumber, form]);
+
   useEffect(() => {
     fetch("/api/payments/config")
       .then((r) => r.ok ? r.json() : null)
