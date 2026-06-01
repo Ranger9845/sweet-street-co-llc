@@ -1,0 +1,32 @@
+name: Notify Customer of Fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: Customer email address
+        required: true
+      customerName:
+        description: Customer name
+        required: false
+        default: ""
+      issueTitle:
+        description: Short issue description
+        required: false
+        default: ""
+      clerkUserId:
+        description: Clerk user ID for awarding points
+        required: false
+        default: ""
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send fix email and award points
+        run: |
+          curl -s -X POST https://sweet-street-co-llc.onrender.com/api/send-fix-email \
+            -H "Content-Type: application/json" \
+            -d "{\"to\":\"${{ inputs.to }}\",\"customerName\":\"${{ inputs.customerName }}\",\"issueTitle\":\"${{ inputs.issueTitle }}\",\"clerkUserId\":\"${{ inputs.clerkUserId }}\"}" \
+            | tee /tmp/result.json
+          cat /tmp/result.json | grep -q '"ok":true' && echo "Email sent successfully" || echo "Email send failed"

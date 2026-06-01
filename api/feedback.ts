@@ -56,7 +56,7 @@ function buildOwnerEmail(fields: {
   `;
 }
 
-async function createGitHubIssue(name: string, rating: number, message: string, email: string | null) {
+async function createGitHubIssue(name: string, rating: number, message: string, email: string | null, clerkUserId: string | null) {
   const token = process.env.GITHUB_ISSUES_TOKEN;
   if (!token) return;
 
@@ -64,6 +64,7 @@ async function createGitHubIssue(name: string, rating: number, message: string, 
   const body = [
     `**From:** ${name}`,
     email ? `**Email:** ${email}` : null,
+    clerkUserId ? `**Clerk User ID:** ${clerkUserId}` : null,
     `**Rating:** ${rating}/5`,
     "",
     "**Message:**",
@@ -96,6 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rating: number = body.rating ?? 5;
   const message: string = body.comment ?? body.message ?? "";
   const email: string | null = body.email ?? null;
+  const clerkUserId: string | null = body.clerkUserId ?? null;
   const issue: string | null = body.issue ?? null;
   const orderInfo: Record<string, string> | null = body.orderInfo ?? null;
   const log: Record<string, string> | null = body.log ?? null;
@@ -163,7 +165,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const issueId: string | null = body.issueId ?? null;
   if (looksLikeBugReport(fullMessage, issueId)) {
-    createGitHubIssue(name, rating, fullMessage, email).catch(() => {});
+    createGitHubIssue(name, rating, fullMessage, email, clerkUserId).catch(() => {});
   }
 
   return res.status(201).json(data);

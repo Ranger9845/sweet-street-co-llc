@@ -127,6 +127,7 @@ export function FeedbackWidget() {
           message: message.trim() || null,
           name: name.trim() || null,
           email: email.trim() || null,
+          clerkUserId: user?.id ?? null,
           orderInfo,
           log,
         }),
