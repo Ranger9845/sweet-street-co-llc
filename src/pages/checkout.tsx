@@ -292,9 +292,12 @@ export default function Checkout() {
         setPaymentMethod("later");
         return;
       }
-      const payments = await window.Square.payments(squareConfig.applicationId, squareConfig.locationId);
+      const payments = await withTimeout(
+        window.Square.payments(squareConfig.applicationId, squareConfig.locationId),
+        10000,
+      );
       paymentsRef.current = payments;
-      const card = await payments.card();
+      const card = await withTimeout(payments.card(), 10000);
       setSquareCard(card);
       setSquareReady(true);
 
