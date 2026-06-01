@@ -26,6 +26,11 @@ type LoyaltyData = {
   lifetimePoints?: number;
 };
 
+type PointsData = {
+  balance: number;
+  history: { id: number; points: number; type: string; description: string | null; createdAt: string }[];
+};
+
 const API = "/api";
 
 /** Normalize a raw phone string to E.164 (+1XXXXXXXXXX), or return empty string. */
@@ -40,6 +45,7 @@ export default function Rewards() {
   const { user, isSignedIn } = useUser();
   const [, setLocation] = useLocation();
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [pointsData, setPointsData] = useState<PointsData | null>(null);
   const [loyaltyData, setLoyaltyData] = useState<LoyaltyData | null>(null);
   const [loading, setLoading] = useState(false);
   const [celebratingId, setCelebratingId] = useState<number | null>(null);
@@ -61,24 +67,27 @@ export default function Rewards() {
     fetch(`${API}/rewards`).then(r => r.ok ? r.json() : []).then(setRewards).catch(() => {});
   }, []);
 
-  // Load loyalty balance for signed-in users using their Clerk phone number
+  // Primary balance: points_ledger (Clerk-based) — covers feedback rewards + order points
+  useEffect(() => {
+    if (!user?.id) { setPointsData(null); return; }
+    setLoading(true);
+    fetch(`${API}/points/${user.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(setPointsData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user?.id]);
+
+  // Secondary: Square Loyalty balance by phone (if phone linked to Clerk account)
   useEffect(() => {
     const phone = user?.primaryPhoneNumber?.phoneNumber;
-    if (!phone) {
-      setLoyaltyData(null);
-      return;
-    }
+    if (!phone) { setLoyaltyData(null); return; }
     const normalized = normalizePhoneClient(phone);
-    if (!normalized) {
-      setLoyaltyData(null);
-      return;
-    }
-    setLoading(true);
+    if (!normalized) { setLoyaltyData(null); return; }
     fetch(`${API}/loyalty/account?phone=${encodeURIComponent(normalized)}`)
       .then(r => r.ok ? r.json() : null)
       .then((data: LoyaltyData | null) => setLoyaltyData(data))
-      .catch(() => setLoyaltyData(null))
-      .finally(() => setLoading(false));
+      .catch(() => setLoyaltyData(null));
   }, [user?.primaryPhoneNumber?.phoneNumber]);
 
   const handleGuestLookup = async () => {
@@ -108,7 +117,10 @@ export default function Rewards() {
   };
 
   const activeRewards = rewards.filter(r => r.active);
-  const displayBalance = loyaltyData?.balance ?? 0;
+  // Combine points_ledger (feedback rewards + order points) with Square loyalty (purchase points)
+  const ledgerBalance = pointsData?.balance ?? 0;
+  const squareBalance = loyaltyData?.balance ?? 0;
+  const displayBalance = ledgerBalance + squareBalance;
 
   return (
     <CustomerLayout>
@@ -137,9 +149,9 @@ export default function Rewards() {
                   {loyaltyData?.lifetimePoints !== undefined && loyaltyData.lifetimePoints > 0 && (
                     <p className="text-xs text-muted-foreground mt-0.5">{loyaltyData.lifetimePoints} lifetime cubes earned</p>
                   )}
-                  {!loyaltyData?.found && (
+                  {displayBalance === 0 && (
                     <p className="text-xs text-muted-foreground mt-1 italic">
-                      No loyalty account yet — earn cubes on your next order!
+                      Earn cubes on your next order!
                     </p>
                   )}
                 </div>
