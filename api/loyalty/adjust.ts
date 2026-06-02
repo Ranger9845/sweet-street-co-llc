@@ -27,21 +27,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const programId = await getLoyaltyProgramId(baseUrl, token);
     const { default: fetch } = await import("node-fetch");
+    const adjustBody = {
+      idempotency_key: `adjust-${account.id}-${Date.now()}`,
+      loyalty_account_id: account.id,
+      adjust_points: {
+        loyalty_program_id: programId,
+        points: Number(points),
+        reason: reason ?? "Manual adjustment",
+      },
+    };
+    console.log("Square adjust payload:", JSON.stringify(adjustBody));
     const adjustRes = await fetch(`${baseUrl}/v2/loyalty/events/adjust`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        idempotency_key: `adjust-${account.id}-${Date.now()}`,
-        loyalty_account_id: account.id,
-        adjust_points: {
-          loyalty_program_id: programId,
-          points: Number(points),
-          reason: reason ?? "Manual adjustment",
-        },
-      }),
+      body: JSON.stringify(adjustBody),
     });
 
-    const data = (await adjustRes.json()) as { event?: object; errors?: { detail: string }[] };
+    const data = (await adjustRes.json()) as { event?: object; errors?: { detail: string; category?: string; code?: string }[] };
+    console.log("Square adjust response:", JSON.stringify(data));
     if (!adjustRes.ok || data.errors) throw new Error(data.errors?.[0]?.detail ?? "Adjust failed");
 
     const updated = await searchLoyaltyAccount(baseUrl, token, normalized);
