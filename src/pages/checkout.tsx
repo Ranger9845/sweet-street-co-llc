@@ -417,7 +417,7 @@ export default function Checkout() {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getDevHeaders() },
         credentials: "include",
-        body: JSON.stringify({ orderId: order.id, sourceId: tokenResult.token }),
+        body: JSON.stringify({ orderId: order.id, sourceId: tokenResult.token, rewardId: appliedReward?.id ?? null }),
       });
       if (!payRes.ok) {
         const { error } = await payRes.json().catch(() => ({ error: "Payment failed" }));
@@ -527,7 +527,7 @@ export default function Checkout() {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getDevHeaders() },
           credentials: "include",
-          body: JSON.stringify({ orderId: order.id, sourceId: "FREE" }),
+          body: JSON.stringify({ orderId: order.id, sourceId: "FREE", rewardId: appliedReward?.id ?? null }),
         });
         if (!res.ok) {
           const { error } = await res.json().catch(() => ({ error: "Failed to place order" }));
@@ -562,7 +562,7 @@ export default function Checkout() {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getDevHeaders() },
           credentials: "include",
-          body: JSON.stringify({ orderId: order.id, sourceId: result.token }),
+          body: JSON.stringify({ orderId: order.id, sourceId: result.token, rewardId: appliedReward?.id ?? null }),
         });
 
         if (!res.ok) {

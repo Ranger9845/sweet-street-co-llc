@@ -6,6 +6,7 @@ import {
   searchLoyaltyAccount,
   createLoyaltyAccount,
   accumulateLoyaltyPoints,
+  getLoyaltyProgramId,
 } from "../loyalty/_square-loyalty";
 
 /**
@@ -33,13 +34,38 @@ async function awardLoyaltyPoints(phone: string, orderId: string): Promise<void>
   }
 }
 
+async function deductLoyaltyPoints(phone: string, points: number): Promise<void> {
+  const token = process.env.SQUARE_ACCESS_TOKEN;
+  if (!token || points <= 0) return;
+  const normalized = normalizePhone(phone);
+  if (!normalized) return;
+  try {
+    const baseUrl = getSquareBaseUrl();
+    const account = await searchLoyaltyAccount(baseUrl, token, normalized);
+    if (!account) return;
+    const programId = await getLoyaltyProgramId(baseUrl, token);
+    const { default: fetch } = await import("node-fetch");
+    await fetch(`${baseUrl}/v2/loyalty/events/adjust`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        idempotency_key: `redeem-${account.id}-${Date.now()}`,
+        loyalty_account_id: account.id,
+        adjust_points: { loyalty_program_id: programId, points: -points, reason: "Reward redeemed" },
+      }),
+    });
+  } catch (e) {
+    console.error("Square loyalty deduct error:", e instanceof Error ? e.message : e);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return err(res, 405, "Method not allowed");
 
   const body = req.body ?? {};
-  const { orderId, sourceId } = body;
+  const { orderId, sourceId, rewardId } = body;
 
   const sb = supabase();
 
@@ -72,6 +98,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Award Square loyalty points by phone (fire-and-forget)
       if (orderData.customer_phone) {
         awardLoyaltyPoints(String(orderData.customer_phone), String(orderId));
+      }
+      // Deduct reward points if a reward was redeemed
+      if (rewardId && orderData.customer_phone) {
+        const { data: reward } = await sb.from("rewards").select("points_cost").eq("id", rewardId).maybeSingle();
+        if (reward?.points_cost) {
+          deductLoyaltyPoints(String(orderData.customer_phone), Number(reward.points_cost));
+        }
       }
       return res.json(orderToClient(orderData));
     }
@@ -155,6 +188,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Award Square loyalty points by phone (fire-and-forget)
     if (paidOrder.customer_phone) {
       awardLoyaltyPoints(String(paidOrder.customer_phone), String(orderId));
+    }
+    // Deduct reward points if a reward was redeemed
+    if (rewardId && paidOrder.customer_phone) {
+      const { data: reward } = await sb.from("rewards").select("points_cost").eq("id", rewardId).maybeSingle();
+      if (reward?.points_cost) {
+        deductLoyaltyPoints(String(paidOrder.customer_phone), Number(reward.points_cost));
+      }
     }
 
     return res.json({ success: true, paymentId: squareData.payment?.id, order: orderToClient(paidOrder) });
