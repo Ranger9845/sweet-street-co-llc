@@ -6,7 +6,6 @@ import {
   searchLoyaltyAccount,
   createLoyaltyAccount,
   accumulateLoyaltyPoints,
-  getLoyaltyProgramId,
 } from "../loyalty/_square-loyalty";
 
 /**
@@ -51,7 +50,7 @@ async function deductLoyaltyPoints(phone: string, points: number): Promise<void>
       body: JSON.stringify({
         idempotency_key: `redeem-${account.id}-${Date.now()}`,
         loyalty_account_id: account.id,
-        adjust_points: { loyalty_program_id: programId, points: -points, reason: "Reward redeemed" },
+        adjust_points: { points: -points, reason: "Reward redeemed" },
       }),
     });
   } catch (e) {

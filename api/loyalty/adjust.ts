@@ -25,13 +25,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!account) account = await createLoyaltyAccount(baseUrl, token, normalized);
     if (!account) return err(res, 404, "Could not find or create loyalty account");
 
-    const programId = await getLoyaltyProgramId(baseUrl, token);
     const { default: fetch } = await import("node-fetch");
     const adjustBody = {
       idempotency_key: `adjust-${account.id}-${Date.now()}`,
       loyalty_account_id: account.id,
       adjust_points: {
-        loyalty_program_id: programId,
         points: Number(points),
         reason: reason ?? "Manual adjustment",
       },
