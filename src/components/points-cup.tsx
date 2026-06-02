@@ -18,6 +18,13 @@ type Reward = {
   active: boolean;
 };
 
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return "";
+}
+
 export function usePointsBalance() {
   const { user } = useUser();
   const [location] = useLocation();
@@ -29,11 +36,31 @@ export function usePointsBalance() {
       setBalance(null);
       return;
     }
-    fetch(`${API}/points/${user.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setBalance(d?.balance ?? 0))
+
+    // Try Square loyalty first (via saved phone), fall back to points_ledger
+    fetch(`${API}/user/profile?clerkUserId=${encodeURIComponent(user.id)}`)
+      .then((r) => (r.ok ? r.json() : { phone_number: null }))
+      .then(async (profile: { phone_number: string | null }) => {
+        const rawPhone = profile.phone_number ?? user.primaryPhoneNumber?.phoneNumber ?? null;
+        if (rawPhone) {
+          const normalized = normalizePhone(rawPhone);
+          if (normalized) {
+            const loyaltyRes = await fetch(`${API}/loyalty/account?phone=${encodeURIComponent(normalized)}`);
+            if (loyaltyRes.ok) {
+              const data = await loyaltyRes.json();
+              if (data?.found) {
+                setBalance(data.balance ?? 0);
+                return;
+              }
+            }
+          }
+        }
+        // Fallback to points_ledger
+        const pts = await fetch(`${API}/points/${user.id}`).then((r) => (r.ok ? r.json() : null));
+        setBalance(pts?.balance ?? 0);
+      })
       .catch(() => setBalance(0));
-  }, [user?.id, refreshKey, location]);
+  }, [user?.id, user?.primaryPhoneNumber?.phoneNumber, refreshKey, location]);
 
   useEffect(() => {
     const handler = () => setRefreshKey((k) => k + 1);
