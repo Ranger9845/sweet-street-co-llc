@@ -58,8 +58,8 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Already authenticated as owner (e.g. from localStorage) — just stop spinning
-    if (isOwner) {
+    // Already authenticated — check localStorage directly (avoids stale closure on isOwner)
+    if (localStorage.getItem("sweet_street_owner_auth") === "true") {
       setVerifying(false);
       return;
     }
