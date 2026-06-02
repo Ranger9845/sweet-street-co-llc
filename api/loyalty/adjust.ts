@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { setCors, err, requireOwner } from "../_utils";
-import { getSquareBaseUrl, normalizePhone, searchLoyaltyAccount, createLoyaltyAccount } from "./_square-loyalty";
+import { getSquareBaseUrl, normalizePhone, searchLoyaltyAccount, createLoyaltyAccount, getLoyaltyProgramId } from "./_square-loyalty";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
@@ -25,6 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!account) account = await createLoyaltyAccount(baseUrl, token, normalized);
     if (!account) return err(res, 404, "Could not find or create loyalty account");
 
+    const programId = await getLoyaltyProgramId(baseUrl, token);
     const { default: fetch } = await import("node-fetch");
     const adjustRes = await fetch(`${baseUrl}/v2/loyalty/events/adjust`, {
       method: "POST",
@@ -33,6 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         idempotency_key: `adjust-${account.id}-${Date.now()}`,
         loyalty_account_id: account.id,
         adjust_points: {
+          loyalty_program_id: programId,
           points: Number(points),
           reason: reason ?? "Manual adjustment",
         },

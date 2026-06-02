@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Resend } from "resend";
 import { supabase, setCors, err } from "./_utils";
-import { getSquareBaseUrl, normalizePhone, searchLoyaltyAccount } from "./loyalty/_square-loyalty";
+import { getSquareBaseUrl, normalizePhone, searchLoyaltyAccount, getLoyaltyProgramId } from "./loyalty/_square-loyalty";
 
 async function awardSquarePoints(phone: string): Promise<void> {
   const token = process.env.SQUARE_ACCESS_TOKEN;
@@ -12,6 +12,7 @@ async function awardSquarePoints(phone: string): Promise<void> {
     const baseUrl = getSquareBaseUrl();
     const account = await searchLoyaltyAccount(baseUrl, token, normalized);
     if (!account) return;
+    const programId = await getLoyaltyProgramId(baseUrl, token);
     const { default: fetch } = await import("node-fetch");
     await fetch(`${baseUrl}/v2/loyalty/events/adjust`, {
       method: "POST",
@@ -19,7 +20,7 @@ async function awardSquarePoints(phone: string): Promise<void> {
       body: JSON.stringify({
         idempotency_key: `feedback-reward-${account.id}-${Date.now()}`,
         loyalty_account_id: account.id,
-        adjust_points: { points: 5, reason: "Bug report reward" },
+        adjust_points: { loyalty_program_id: programId, points: 5, reason: "Bug report reward" },
       }),
     });
   } catch {}
