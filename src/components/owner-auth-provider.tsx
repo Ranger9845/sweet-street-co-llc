@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
 const OWNER_EMAIL = "ldfarris2007@gmail.com";
 
@@ -18,17 +18,6 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [password, setPassword] = useState<string>("");
   const [verifying, setVerifying] = useState<boolean>(true);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("sweet_street_owner_auth");
-    const storedPw = localStorage.getItem("sweet_street_owner_pw");
-    if (stored === "true") {
-      setIsOwner(true);
-      if (storedPw) setPassword(storedPw);
-    }
-    // Mark initial load done; Clerk sync will set verifying=false after it runs
-    setVerifying(false);
-  }, []);
 
   const login = (pw: string, actualPassword?: string) => {
     // When called from the server-verified login flow both args are the same pw.
@@ -58,13 +47,7 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Already authenticated — check localStorage directly (avoids stale closure on isOwner)
-    if (localStorage.getItem("sweet_street_owner_auth") === "true") {
-      setVerifying(false);
-      return;
-    }
-
-    // Fetch the API token from the server
+    // Always fetch a fresh token on load — no localStorage shortcut
     setVerifying(true);
     try {
       const res = await fetch("/api/owner/api-token", {
@@ -84,7 +67,7 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("sweet_street_owner_pw");
       }
     } catch {
-      // Network error — fall back to localStorage state (already loaded above)
+      // Network error — leave auth state as-is
     } finally {
       setVerifying(false);
     }
