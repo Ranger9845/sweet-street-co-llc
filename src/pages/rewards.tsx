@@ -133,10 +133,8 @@ export default function Rewards() {
   };
 
   const activeRewards = rewards.filter(r => r.active);
-  // Combine points_ledger (feedback rewards + order points) with Square loyalty (purchase points)
-  const ledgerBalance = pointsData?.balance ?? 0;
-  const squareBalance = loyaltyData?.balance ?? 0;
-  const displayBalance = ledgerBalance + squareBalance;
+  // Square is the single source of truth for points balance
+  const displayBalance = loyaltyData?.balance ?? 0;
 
   return (
     <CustomerLayout>
