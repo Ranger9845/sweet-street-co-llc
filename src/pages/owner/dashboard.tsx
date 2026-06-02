@@ -29,6 +29,206 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 
+// ─── Square POS types ────────────────────────────────────────────────────────
+type SquareLineItem = {
+  name: string;
+  quantity: string;
+  variation_name?: string;
+  base_price_money?: { amount: number; currency: string };
+};
+type SquareOrder = {
+  id: string;
+  state: string;
+  line_items?: SquareLineItem[];
+  total_money?: { amount: number; currency: string };
+  created_at: string;
+};
+
+// ─── Fuzzy name matcher ───────────────────────────────────────────────────────
+function matchSquareItemToMenu(squareName: string, menuMap: Map<number, any>): any | null {
+  const lower = squareName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  for (const item of menuMap.values()) {
+    const itemLower = (item.name as string).toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (lower.includes(itemLower) || itemLower.includes(lower)) return item;
+  }
+  return null;
+}
+
+// ─── useSquareActiveOrders — polls every 5 seconds ───────────────────────────
+function useSquareActiveOrders() {
+  const [orders, setOrders] = useState<SquareOrder[]>([]);
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const r = await fetch("/api/square/active-orders");
+        if (r.ok && active) {
+          const d = await r.json() as { orders: SquareOrder[] };
+          setOrders(d.orders ?? []);
+        }
+      } catch { /* silent */ }
+    };
+    poll();
+    const id = setInterval(poll, 5000);
+    return () => { active = false; clearInterval(id); };
+  }, []);
+  return orders;
+}
+
+// ─── SquarePosLiveSection ─────────────────────────────────────────────────────
+function SquarePosLiveSection({ menuItemsById }: { menuItemsById: Map<number, any> }) {
+  const orders = useSquareActiveOrders();
+  const [expandedRecipes, setExpandedRecipes] = useState<Set<string>>(new Set());
+
+  const toggleRecipe = (key: string) => {
+    setExpandedRecipes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const hasOrders = orders.length > 0;
+
+  return (
+    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/30 p-4 shadow-sm">
+      {/* Section header */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="relative flex h-2.5 w-2.5">
+          {hasOrders ? (
+            <>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </>
+          ) : (
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-300" />
+          )}
+        </span>
+        <h2 className="font-bold text-foreground text-base">Square POS — Live</h2>
+        <span className={`ml-auto text-sm font-bold px-2.5 py-0.5 rounded-full border ${
+          hasOrders
+            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+            : "bg-muted text-muted-foreground border-border"
+        }`}>
+          {orders.length}
+        </span>
+        <span className="text-[10px] text-muted-foreground/60 ml-1">updates every 5s</span>
+      </div>
+
+      {!hasOrders ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-emerald-200/60 rounded-xl bg-white/50">
+          <ShoppingBag className="h-7 w-7 text-muted-foreground/40 mb-2" />
+          <p className="text-sm font-medium text-muted-foreground">No active POS orders</p>
+          <p className="text-xs text-muted-foreground/60 mt-0.5">Open orders will appear here in real time</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <AnimatePresence mode="popLayout">
+            {orders.map((order) => {
+              const shortId = order.id.slice(-6).toUpperCase();
+              const total = order.total_money ? (order.total_money.amount / 100).toFixed(2) : "—";
+              const createdAgo = formatDistanceToNowStrict(new Date(order.created_at), { addSuffix: true });
+              return (
+                <motion.div
+                  key={order.id}
+                  layout
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 280, damping: 26 }}
+                >
+                  <div className="relative rounded-xl border border-emerald-200 bg-white overflow-hidden shadow-sm">
+                    {/* Left stripe */}
+                    <div className="absolute left-0 inset-y-0 w-1.5 bg-emerald-500" />
+                    <div className="pl-5 pr-4 pt-3 pb-3">
+                      {/* Header */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">#{shortId}</span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full leading-none">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                            </span>
+                            {order.state}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground/70 shrink-0">{createdAgo}</span>
+                      </div>
+
+                      {/* Line items */}
+                      <div className="space-y-1.5 mb-3">
+                        {(order.line_items ?? []).map((item, idx) => {
+                          const recipeKey = `${order.id}:${idx}`;
+                          const matched = matchSquareItemToMenu(item.name, menuItemsById);
+                          const ingredients = matched?.ingredients ?? [];
+                          const steps = matched?.prepSteps ?? matched?.prep_steps ?? [];
+                          const hasRecipe = ingredients.length > 0 || steps.length > 0;
+                          const isExpanded = expandedRecipes.has(recipeKey);
+                          return (
+                            <div key={idx} className="text-xs">
+                              <div className="flex items-baseline gap-1">
+                                <span className="font-bold text-slate-600 tabular-nums">{item.quantity}×</span>
+                                <span className="font-medium text-slate-800">{item.name}</span>
+                                {item.variation_name && (
+                                  <span className="text-slate-400">({item.variation_name})</span>
+                                )}
+                              </div>
+                              {hasRecipe && (
+                                <button
+                                  onClick={() => toggleRecipe(recipeKey)}
+                                  className="ml-4 mt-0.5 flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                                >
+                                  <ChefHat className="h-3 w-3" />
+                                  {isExpanded ? "Hide recipe" : "Show recipe"}
+                                </button>
+                              )}
+                              {hasRecipe && isExpanded && (
+                                <div className="ml-4 mt-1 rounded-lg bg-blue-50 border border-blue-100 px-2.5 py-2 space-y-1">
+                                  {ingredients.length > 0 && (
+                                    <ul className="space-y-0.5">
+                                      {ingredients.map((ing: any, i: number) => (
+                                        <li key={i} className="text-blue-700 flex gap-1.5">
+                                          <span className="text-blue-400 shrink-0">•</span>
+                                          <span>{ing.amount} {ing.name}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  {steps.length > 0 && (
+                                    <ol className="space-y-0.5 mt-1">
+                                      {steps.map((step: any, i: number) => (
+                                        <li key={i} className="text-blue-700 flex gap-1.5">
+                                          <span className="font-bold text-blue-500 shrink-0 tabular-nums">{step.stepNumber ?? i + 1}.</span>
+                                          <span>{step.instruction}</span>
+                                        </li>
+                                      ))}
+                                    </ol>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Total */}
+                      <div className="border-t border-slate-100 pt-2 flex items-center justify-between text-xs">
+                        <span className="text-slate-400 font-medium">{(order.line_items ?? []).length} item{(order.line_items ?? []).length !== 1 ? "s" : ""}</span>
+                        <span className="font-bold text-slate-700">${total}</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Live cart types ──────────────────────────────────────────────────────────
 type LiveCartItem = {
   name: string;
@@ -1512,6 +1712,9 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+
+            {/* Square POS — Live */}
+            <SquarePosLiveSection menuItemsById={menuItemsById} />
 
             {/* Being Rung Up */}
             {liveCarts.length > 0 && (
