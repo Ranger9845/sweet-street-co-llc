@@ -41,6 +41,7 @@ import authVerifyOwnerHandler from "./api/auth/verify-owner.js";
 import sendFixEmailHandler from "./api/send-fix-email.js";
 import loyaltyAccountHandler from "./api/loyalty/account.js";
 import loyaltyAccumulateHandler from "./api/loyalty/accumulate.js";
+import loyaltyAdjustHandler from "./api/loyalty/adjust.js";
 import userProfileHandler from "./api/user/profile.js";
 
 const app = express();
@@ -107,6 +108,7 @@ app.all("/api/payments/process", adapt(paymentsProcessHandler));
 // Square Loyalty
 app.all("/api/loyalty/account", adapt(loyaltyAccountHandler));
 app.all("/api/loyalty/accumulate", adapt(loyaltyAccumulateHandler));
+app.all("/api/loyalty/adjust", adapt(loyaltyAdjustHandler));
 
 // Discount codes
 app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));
