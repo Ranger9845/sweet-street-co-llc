@@ -12,7 +12,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { password } = req.body ?? {};
   if (!password) return res.json({ valid: false });
 
+  // Check env var first (same priority as requireOwner in _utils.ts)
+  const envPw = process.env.OWNER_PASSWORD;
+  if (envPw) return res.json({ valid: envPw === password });
+
   const sb = supabase();
   const { data } = await sb.from("settings").select("owner_password").eq("id", 1).maybeSingle();
-  return res.json({ valid: data?.owner_password === password });
+  const stored = data?.owner_password ?? "owner123";
+  return res.json({ valid: stored === password });
 }
