@@ -38,6 +38,7 @@ import posItemAssignmentsHandler from "./api/pos-item-assignments.js";
 import adminDailySummaryHandler from "./api/admin/daily-summary/send.js";
 import ownerVerifyHandler from "./api/owner/verify.js";
 import ownerApiTokenHandler from "./api/owner/api-token.js";
+import ownerAllowedEmailsHandler from "./api/owner/allowed-emails.js";
 import authVerifyOwnerHandler from "./api/auth/verify-owner.js";
 import sendFixEmailHandler from "./api/send-fix-email.js";
 import loyaltyAccountHandler from "./api/loyalty/account.js";
@@ -127,6 +128,7 @@ app.all("/api/admin/daily-summary/send", adapt(adminDailySummaryHandler));
 // Auth
 app.all("/api/owner/verify", adapt(ownerVerifyHandler));
 app.all("/api/owner/api-token", adapt(ownerApiTokenHandler));
+app.all("/api/owner/allowed-emails", adapt(ownerAllowedEmailsHandler));
 app.all("/api/auth/verify-owner", adapt(authVerifyOwnerHandler));
 app.all("/api/send-fix-email", adapt(sendFixEmailHandler));
 app.all("/api/user/profile", adapt(userProfileHandler));

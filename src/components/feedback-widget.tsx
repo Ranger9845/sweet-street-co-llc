@@ -5,14 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/react";
+import { getConsoleLogs } from "@/lib/console-capture";
 
-const PRESET_ISSUES = [
+const CUSTOMER_PRESETS = [
   { id: "order_wrong", label: "My order was wrong" },
   { id: "payment_issue", label: "Payment problem" },
   { id: "app_broken", label: "Something isn't working" },
   { id: "order_late", label: "Order took too long" },
   { id: "missing_item", label: "Missing item" },
   { id: "other", label: "Other / general feedback" },
+];
+
+const OWNER_PRESETS = [
+  { id: "dashboard_issue", label: "Dashboard not loading" },
+  { id: "order_mgmt", label: "Order management issue" },
+  { id: "menu_issue", label: "Menu / product issue" },
+  { id: "square_issue", label: "Square / payment issue" },
+  { id: "settings_issue", label: "Settings not saving" },
+  { id: "bug_error", label: "Bug / error in console" },
 ];
 
 const ORDER_RELATED = new Set(["order_wrong", "order_late", "missing_item"]);
@@ -35,11 +45,14 @@ function formatOrderDate(iso: string) {
 export function FeedbackWidget() {
   const { user } = useUser();
   const [phase, setPhase] = useState<Phase>("idle");
+  const [isOwnerMode, setIsOwnerMode] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  const PRESET_ISSUES = isOwnerMode ? OWNER_PRESETS : CUSTOMER_PRESETS;
 
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -54,7 +67,9 @@ export function FeedbackWidget() {
 
   // Listen for the help-bubble custom event to open the widget
   useEffect(() => {
-    const handleOpen = () => {
+    const handleOpen = (e: Event) => {
+      const ownerMode = (e as CustomEvent).detail?.isOwner === true;
+      setIsOwnerMode(ownerMode);
       setPhase((prev) => {
         if (prev === "idle") {
           setSelectedIssue(null);
@@ -134,6 +149,7 @@ export function FeedbackWidget() {
       viewport: `${window.innerWidth}×${window.innerHeight}`,
       timestamp: new Date().toISOString(),
       referrer: document.referrer || "—",
+      consoleLogs: getConsoleLogs(),
     };
 
     try {
@@ -211,7 +227,9 @@ export function FeedbackWidget() {
               <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b bg-primary/5">
                 <div className="flex items-center gap-2">
                   <MessageSquarePlus className="h-5 w-5 text-primary" />
-                  <span className="font-semibold text-primary-foreground">Send Feedback</span>
+                  <span className="font-semibold text-primary-foreground">
+                    {isOwnerMode ? "Owner Support" : "Send Feedback"}
+                  </span>
                 </div>
                 <button
                   onClick={close}

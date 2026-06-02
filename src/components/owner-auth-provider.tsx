@@ -58,16 +58,6 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (email.toLowerCase() !== OWNER_EMAIL.toLowerCase()) {
-      // Wrong account — deny access
-      setIsOwner(false);
-      setPassword("");
-      localStorage.removeItem("sweet_street_owner_auth");
-      localStorage.removeItem("sweet_street_owner_pw");
-      setVerifying(false);
-      return;
-    }
-
     // Already authenticated as owner (e.g. from localStorage) — just stop spinning
     if (isOwner) {
       setVerifying(false);

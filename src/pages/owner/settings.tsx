@@ -533,16 +533,105 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end pb-8">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full md:w-auto"
-          >
+        <div className="flex justify-end pb-4">
+          <Button onClick={handleSave} disabled={saving} className="w-full md:w-auto">
             {saving ? "Saving..." : "Save All Settings"}
           </Button>
         </div>
+
+        <OwnerEmailsCard ownerPw={ownerPw} />
       </div>
     </OwnerLayout>
+  );
+}
+
+function OwnerEmailsCard({ ownerPw }: { ownerPw: string }) {
+  const { toast } = useToast();
+  const [emails, setEmails] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/owner/allowed-emails", { headers: { "x-owner-password": ownerPw } })
+      .then((r) => (r.ok ? r.json() : { emails: ["ldfarris2007@gmail.com"] }))
+      .then((d) => { setEmails(d.emails ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [ownerPw]);
+
+  const save = async (updated: string[]) => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/owner/api-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-owner-password": ownerPw },
+        body: JSON.stringify({ emails: updated }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setEmails(data.emails ?? updated);
+      toast({ title: "Saved", description: "Allowed owner emails updated." });
+    } catch {
+      toast({ title: "Error", description: "Could not save emails.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addEmail = () => {
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!trimmed || emails.includes(trimmed)) { setNewEmail(""); return; }
+    setNewEmail("");
+    save([...emails, trimmed]);
+  };
+
+  const removeEmail = (email: string) => {
+    if (email === "ldfarris2007@gmail.com") return; // can't remove primary
+    save(emails.filter((e) => e !== email));
+  };
+
+  return (
+    <Card className="pb-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Mail className="h-4 w-4" /> Owner Access Emails</CardTitle>
+        <CardDescription>These emails can sign in to the owner dashboard via Clerk.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+        ) : (
+          <div className="space-y-2">
+            {emails.map((email) => (
+              <div key={email} className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
+                <span className="text-sm font-medium">{email}</span>
+                {email !== "ldfarris2007@gmail.com" && (
+                  <button
+                    onClick={() => removeEmail(email)}
+                    className="text-xs text-destructive hover:underline"
+                    disabled={saving}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2 pt-1">
+          <Input
+            placeholder="newowner@example.com"
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addEmail()}
+            className="flex-1"
+            disabled={saving}
+          />
+          <Button onClick={addEmail} disabled={saving || !newEmail.trim()} size="sm">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

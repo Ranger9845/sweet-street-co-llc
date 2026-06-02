@@ -42,7 +42,16 @@ function buildOwnerEmail(fields: {
   }
 
   if (log) {
+    const consoleLogs: { level: string; msg: string; ts: string }[] = log.consoleLogs ?? [];
+    const consoleHtml = consoleLogs.length > 0
+      ? consoleLogs.map((l) => {
+          const color = l.level === "error" ? "#c0392b" : l.level === "warn" ? "#e67e22" : "#555";
+          return `<span style="color:${color}">[${l.level.toUpperCase()}] ${l.ts.split("T")[1]?.split(".")[0] ?? ""} ${l.msg}</span>`;
+        }).join("<br>")
+      : "<em>No console logs captured</em>";
+
     lines.push(`<hr><p style="font-size:12px;color:#888"><strong>Browser info:</strong><br>${log.userAgent}<br>Screen: ${log.screen} · Viewport: ${log.viewport}<br>Page: ${log.url}<br>Time: ${log.timestamp}</p>`);
+    lines.push(`<hr><details><summary style="font-size:12px;color:#888;cursor:pointer"><strong>Console logs (${consoleLogs.length})</strong></summary><pre style="font-size:11px;background:#1a1a1a;color:#eee;padding:8px;border-radius:4px;overflow-x:auto;max-height:300px;overflow-y:auto">${consoleHtml}</pre></details>`);
   }
 
   return `

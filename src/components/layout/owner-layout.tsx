@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { LayoutDashboard, MenuSquare, Settings, LogOut, Tag, Gift, History, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOwnerAuth } from "../owner-auth-provider";
@@ -9,6 +9,11 @@ import { FeedbackWidget } from "@/components/feedback-widget";
 export function OwnerLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { logout } = useOwnerAuth();
+
+  // Log every owner dashboard page visit for diagnostics
+  useEffect(() => {
+    console.info(`[Owner Dashboard] Visited: ${location} at ${new Date().toISOString()}`);
+  }, [location]);
 
   const navItems = [
     { href: "/owner", label: "Dashboard", icon: LayoutDashboard },
@@ -73,7 +78,7 @@ export function OwnerLayout({ children }: { children: ReactNode }) {
         </div>
       </main>
 
-      <HelpBubble />
+      <HelpBubble isOwner={true} />
       <FeedbackWidget />
     </div>
   );

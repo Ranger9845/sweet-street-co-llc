@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 import { HelpCircle } from "lucide-react";
 
-export function HelpBubble() {
+export function HelpBubble({ isOwner = false }: { isOwner?: boolean }) {
   const handleClick = () => {
-    window.dispatchEvent(new CustomEvent("open-feedback-widget"));
+    window.dispatchEvent(new CustomEvent("open-feedback-widget", { detail: { isOwner } }));
   };
 
   return (
@@ -20,12 +20,7 @@ export function HelpBubble() {
       transition={{
         opacity: { duration: 0.3 },
         x: { duration: 0.3 },
-        y: {
-          duration: 2,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 0.5,
-        },
+        y: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 },
       }}
       aria-label="Send us feedback"
       title="Send us feedback"
