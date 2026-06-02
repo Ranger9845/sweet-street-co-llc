@@ -89,7 +89,7 @@ export async function searchLoyaltyAccount(
     },
     body: JSON.stringify({
       query: {
-        mappings: [{ type: "PHONE", value: phone }],
+        mappings: [{ phone_number: phone }],
       },
     }),
   });
@@ -127,7 +127,7 @@ export async function createLoyaltyAccount(
       idempotency_key: `create-${phone}-${Date.now()}`,
       loyalty_account: {
         program_id: programId,
-        mapping: { type: "PHONE", value: phone },
+        mapping: { phone_number: phone },
       },
     }),
   });
