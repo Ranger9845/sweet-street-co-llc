@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       location_ids: [locationId],
       query: {
         filter: {
-          state_filter: { states: ["OPEN", "IN_PROGRESS"] },
+          state_filter: { states: ["DRAFT", "OPEN", "IN_PROGRESS"] },
           date_time_filter: {
             created_at: { start_at: todayStart.toISOString() },
           },
