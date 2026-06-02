@@ -54,6 +54,18 @@ function matchSquareItemToMenu(squareName: string, menuMap: Map<number, any>): a
   return null;
 }
 
+// ─── useSquareRecentOrders — fetches completed orders from today ──────────────
+function useSquareRecentOrders() {
+  const [orders, setOrders] = useState<SquareOrder[]>([]);
+  useEffect(() => {
+    fetch("/api/square/recent-orders")
+      .then(r => r.ok ? r.json() : { orders: [] })
+      .then((d: { orders: SquareOrder[] }) => setOrders(d.orders ?? []))
+      .catch(() => {});
+  }, []);
+  return orders;
+}
+
 // ─── useSquareActiveOrders — polls every 5 seconds ───────────────────────────
 function useSquareActiveOrders() {
   const [orders, setOrders] = useState<SquareOrder[]>([]);
@@ -244,6 +256,50 @@ type LiveCart = {
   subtotal: number;
   updatedAt: number;
 };
+
+// ─── SquarePosRecentSection — today's completed Square POS orders ─────────────
+function SquarePosRecentSection({ menuItemsById }: { menuItemsById: Map<number, any> }) {
+  const orders = useSquareRecentOrders();
+  if (orders.length === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/30 p-4 shadow-sm">
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="font-bold text-foreground text-base">Today's Square Sales</h2>
+        <span className="ml-auto text-xs bg-slate-100 text-slate-600 border border-slate-200 font-bold px-2 py-0.5 rounded-full">{orders.length}</span>
+      </div>
+      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+        {orders.map((order) => {
+          const shortId = order.id.slice(-6).toUpperCase();
+          const total = order.total_money ? `$${(order.total_money.amount / 100).toFixed(2)}` : "";
+          const timeStr = order.created_at ? new Date(order.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+          return (
+            <div key={order.id} className="flex items-start justify-between bg-white rounded-xl px-3 py-2 border border-slate-100 text-sm">
+              <div>
+                <span className="font-mono text-[11px] text-muted-foreground">#{shortId}</span>
+                <div className="mt-0.5 space-y-0.5">
+                  {(order.line_items ?? []).map((item, i) => {
+                    const matched = matchSquareItemToMenu(item.name, menuItemsById);
+                    return (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <span className="text-xs">{item.quantity}× {item.name}{item.variation_name ? ` (${item.variation_name})` : ""}</span>
+                        {matched && <ChefHat className="h-3 w-3 text-blue-400 flex-shrink-0" title="Recipe available" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0 ml-3">
+                {total && <p className="font-semibold text-sm">{total}</p>}
+                {timeStr && <p className="text-[11px] text-muted-foreground">{timeStr}</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ─── useLiveCarts — polls /api/live-carts every 3 seconds ────────────────────
 function useLiveCarts(password: string | undefined) {
@@ -1715,6 +1771,9 @@ export default function Dashboard() {
 
             {/* Square POS — Live */}
             <SquarePosLiveSection menuItemsById={menuItemsById} />
+
+            {/* Recent Square POS Sales */}
+            <SquarePosRecentSection menuItemsById={menuItemsById} />
 
             {/* Being Rung Up */}
             {liveCarts.length > 0 && (
