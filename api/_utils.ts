@@ -11,7 +11,7 @@ export function supabase(): SupabaseClient {
 export function setCors(res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-owner-password, x-dev-key, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-owner-password, x-dev-key, Authorization, x-clerk-user-email");
 }
 
 export async function requireOwner(req: VercelRequest): Promise<boolean> {

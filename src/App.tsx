@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "@/components/cart-provider";
 import { CartFlyProvider } from "@/components/cart-fly";
-import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from "@clerk/react";
 import { useEffect, useRef, useState } from "react";
 import NotFound from "@/pages/not-found";
 import { OwnerAuthProvider, useOwnerAuth } from "@/components/owner-auth-provider";
@@ -67,6 +67,21 @@ function SignUpPage() {
   );
 }
 
+// Bridges Clerk identity into OwnerAuthProvider (which lives outside ClerkProvider)
+function OwnerClerkSync() {
+  const { user, isLoaded } = useUser();
+  const { verifyClerkUser } = useOwnerAuth();
+  const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? null;
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    verifyClerkUser(email);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, email]);
+
+  return null;
+}
+
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
   const qc = useQueryClient();
@@ -88,7 +103,10 @@ function ClerkQueryClientCacheInvalidator() {
 
 function OwnerRoute({ component: Component }: { component: React.ComponentType }) {
   const { isOwner, verifying } = useOwnerAuth();
-  if (verifying) {
+  const { isLoaded: clerkLoaded } = useUser();
+
+  // Show spinner while Clerk hasn't finished loading or owner identity is still being verified
+  if (!clerkLoaded || verifying) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
@@ -162,6 +180,7 @@ function ClerkProviderWithRoutes() {
         signUpUrl={`${basePath}/sign-up`}
       >
       <QueryClientProvider client={queryClient}>
+        <OwnerClerkSync />
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
           <CartProvider>

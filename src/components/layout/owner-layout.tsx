@@ -3,6 +3,8 @@ import { ReactNode } from "react";
 import { LayoutDashboard, MenuSquare, Settings, LogOut, Tag, Gift, History, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOwnerAuth } from "../owner-auth-provider";
+import { HelpBubble } from "@/components/help-bubble";
+import { FeedbackWidget } from "@/components/feedback-widget";
 
 export function OwnerLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -70,6 +72,9 @@ export function OwnerLayout({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
+
+      <HelpBubble />
+      <FeedbackWidget />
     </div>
   );
 }

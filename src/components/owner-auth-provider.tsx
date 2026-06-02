@@ -1,10 +1,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
+const OWNER_EMAIL = "ldfarris2007@gmail.com";
+
 interface OwnerAuthContextType {
   isOwner: boolean;
   password: string;
+  verifying: boolean;
   login: (password: string, actualPassword?: string) => boolean;
   logout: () => void;
+  /** Called by OwnerClerkSync (inside ClerkProvider) to authenticate via Clerk email */
+  verifyClerkUser: (email: string | null | undefined) => Promise<void>;
 }
 
 const OwnerAuthContext = createContext<OwnerAuthContextType | undefined>(undefined);
@@ -12,6 +17,7 @@ const OwnerAuthContext = createContext<OwnerAuthContextType | undefined>(undefin
 export function OwnerAuthProvider({ children }: { children: ReactNode }) {
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [password, setPassword] = useState<string>("");
+  const [verifying, setVerifying] = useState<boolean>(true);
 
   useEffect(() => {
     const stored = localStorage.getItem("sweet_street_owner_auth");
@@ -20,6 +26,8 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
       setIsOwner(true);
       if (storedPw) setPassword(storedPw);
     }
+    // Mark initial load done; Clerk sync will set verifying=false after it runs
+    setVerifying(false);
   }, []);
 
   const login = (pw: string, actualPassword?: string) => {
@@ -43,8 +51,57 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("sweet_street_owner_pw");
   };
 
+  const verifyClerkUser = async (email: string | null | undefined) => {
+    if (!email) {
+      // Clerk loaded but no signed-in user — stop verifying
+      setVerifying(false);
+      return;
+    }
+
+    if (email.toLowerCase() !== OWNER_EMAIL.toLowerCase()) {
+      // Wrong account — deny access
+      setIsOwner(false);
+      setPassword("");
+      localStorage.removeItem("sweet_street_owner_auth");
+      localStorage.removeItem("sweet_street_owner_pw");
+      setVerifying(false);
+      return;
+    }
+
+    // Already authenticated as owner (e.g. from localStorage) — just stop spinning
+    if (isOwner) {
+      setVerifying(false);
+      return;
+    }
+
+    // Fetch the API token from the server
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/owner/api-token", {
+        headers: { "x-clerk-user-email": email },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const token: string = data.token ?? "";
+        setIsOwner(true);
+        setPassword(token);
+        localStorage.setItem("sweet_street_owner_auth", "true");
+        localStorage.setItem("sweet_street_owner_pw", token);
+      } else {
+        setIsOwner(false);
+        setPassword("");
+        localStorage.removeItem("sweet_street_owner_auth");
+        localStorage.removeItem("sweet_street_owner_pw");
+      }
+    } catch {
+      // Network error — fall back to localStorage state (already loaded above)
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
-    <OwnerAuthContext.Provider value={{ isOwner, password, login, logout }}>
+    <OwnerAuthContext.Provider value={{ isOwner, password, verifying, login, logout, verifyClerkUser }}>
       {children}
     </OwnerAuthContext.Provider>
   );

@@ -17,6 +17,7 @@ import { useVisitorHeartbeat } from "@/hooks/use-visitor-heartbeat";
 import { usePlatform } from "@/hooks/use-platform";
 import { ThemePicker } from "@/components/theme-picker";
 import { PhoneCaptureModal } from "@/components/phone-capture-modal";
+import { HelpBubble } from "@/components/help-bubble";
 
 type Reward = {
   id: number;
@@ -238,6 +239,8 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
       <DevNotificationModal />
 
       <WelcomeTour open={tour.open} onOpenChange={tour.setOpen} />
+
+      <HelpBubble />
 
       <FeedbackWidget />
 

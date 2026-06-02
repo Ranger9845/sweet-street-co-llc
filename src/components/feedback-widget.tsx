@@ -52,6 +52,25 @@ export function FeedbackWidget() {
     }
   }, [user]);
 
+  // Listen for the help-bubble custom event to open the widget
+  useEffect(() => {
+    const handleOpen = () => {
+      setPhase((prev) => {
+        if (prev === "idle") {
+          setSelectedIssue(null);
+          setMessage("");
+          setErrorMsg("");
+          setOrders([]);
+          setSelectedOrderId(null);
+          return "open";
+        }
+        return prev;
+      });
+    };
+    window.addEventListener("open-feedback-widget", handleOpen);
+    return () => window.removeEventListener("open-feedback-widget", handleOpen);
+  }, []);
+
   useEffect(() => {
     if (selectedIssue && ORDER_RELATED.has(selectedIssue) && user) {
       setOrdersLoading(true);
