@@ -7,9 +7,9 @@
 let cachedProgramId: string | null = null;
 
 export function getSquareBaseUrl(): string {
-  return process.env.SQUARE_ENVIRONMENT === "production"
-    ? "https://connect.squareup.com"
-    : "https://connect.squareupsandbox.com";
+  return process.env.SQUARE_ENVIRONMENT === "sandbox"
+    ? "https://connect.squareupsandbox.com"
+    : "https://connect.squareup.com";
 }
 
 /**
