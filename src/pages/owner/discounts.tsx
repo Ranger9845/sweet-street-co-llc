@@ -62,7 +62,7 @@ export default function Discounts() {
   const fetchCodes = async () => {
     try {
       const res = await fetch("/api/discount-codes", {
-        headers: { "x-owner-token": password || "" },
+        headers: { "x-owner-password": password || "" },
       });
       if (res.ok) setCodes(await res.json());
     } finally {
@@ -78,7 +78,7 @@ export default function Discounts() {
     try {
       const res = await fetch("/api/discount-codes", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-owner-token": password || "" },
+        headers: { "Content-Type": "application/json", "x-owner-password": password || "" },
         body: JSON.stringify({
           code: newCode.trim().toUpperCase(),
           schoolName: newName.trim(),
@@ -108,7 +108,7 @@ export default function Discounts() {
   const toggleActive = async (code: DiscountCode) => {
     const res = await fetch(`/api/discount-codes/${code.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-owner-token": password || "" },
+      headers: { "Content-Type": "application/json", "x-owner-password": password || "" },
       body: JSON.stringify({ active: !code.active }),
     });
     if (res.ok) {
@@ -118,7 +118,7 @@ export default function Discounts() {
   };
 
   const handleDelete = async (id: number) => {
-    const res = await fetch(`/api/discount-codes/${id}`, { method: "DELETE", headers: { "x-owner-token": password || "" } });
+    const res = await fetch(`/api/discount-codes/${id}`, { method: "DELETE", headers: { "x-owner-password": password || "" } });
     if (res.ok || res.status === 204) {
       setCodes((prev) => prev.filter((c) => c.id !== id));
       toast({ title: "Code Deleted" });

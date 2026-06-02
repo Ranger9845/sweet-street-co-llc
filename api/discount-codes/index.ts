@@ -41,7 +41,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .select()
       .single();
     if (error) return err(res, 400, error.message);
-    return res.status(201).json(data);
+    return res.status(201).json({
+      id: data.id,
+      code: data.code,
+      schoolName: data.school_name,
+      discountType: data.discount_type,
+      discountAmount: data.discount_amount,
+      active: data.active,
+      createdAt: data.created_at,
+    });
   }
 
   return err(res, 405, "Method not allowed");
