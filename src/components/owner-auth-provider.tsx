@@ -35,10 +35,23 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setIsOwner(false);
     setPassword("");
+    // Clear the session grant so the next tab open requires an explicit login click
+    sessionStorage.removeItem("ownerSessionGranted");
   };
 
   const verifyClerkUser = async (email: string | null | undefined) => {
     if (!email) {
+      // Clerk signed out — revoke owner state immediately
+      setIsOwner(false);
+      setPassword("");
+      setVerifying(false);
+      return;
+    }
+
+    // Require the user to have explicitly opened the dashboard this browser session.
+    // sessionStorage is cleared on tab/window close, so re-opening the browser
+    // always lands on the login confirmation screen rather than auto-granting access.
+    if (!sessionStorage.getItem("ownerSessionGranted")) {
       setVerifying(false);
       return;
     }

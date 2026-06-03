@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { supabase, setCors, requireOwner, err } from "./_utils";
+import { supabase, setCors, requireOwner, err, getShopTimeInfo } from "./_utils";
 
 // Map DB snake_case → app camelCase
 function toClient(row: Record<string, unknown>, includeSecret = false) {
@@ -106,9 +106,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const end = parseTime((data.happy_hour_end as string) ?? "17:00");
     const isHappyHour = !!(data.happy_hour_enabled && hour >= start && hour < end);
 
-    const isSunday = new Date().getDay() === 0;
-    // Always honour the DB is_open value — never override with computed hours
-    return res.json({ ...client, isHappyHour, isOpen: !!data.is_open, manualOpen: !!data.is_open, isSunday });
+    const timeInfo = getShopTimeInfo();
+    return res.json({
+      ...client,
+      isHappyHour,
+      isOpen: !!data.is_open && !timeInfo.shopClosedByHours,
+      manualOpen: !!data.is_open,
+      isSunday: timeInfo.isSunday,
+      todayHours: timeInfo.todayHours,
+      closingSoon: timeInfo.closingSoon,
+      minutesUntilClose: timeInfo.minutesUntilClose,
+      nextOpenLabel: timeInfo.nextOpenLabel,
+    });
   }
 
   if (req.method === "PATCH") {

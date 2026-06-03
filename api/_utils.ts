@@ -1,6 +1,58 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+// Shop hours for Sweet Street Co (Meeker, OK — Central Time)
+const SHOP_SCHEDULE: ({ open: number; close: number } | null)[] = [
+  null,                    // 0 Sun: closed (restock day)
+  { open: 7, close: 19 }, // 1 Mon: 7am–7pm
+  { open: 7, close: 19 }, // 2 Tue
+  { open: 7, close: 19 }, // 3 Wed
+  { open: 7, close: 19 }, // 4 Thu
+  { open: 7, close: 20 }, // 5 Fri: 7am–8pm
+  { open: 8, close: 20 }, // 6 Sat: 8am–8pm
+];
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function fmtHour(h: number): string {
+  if (h === 12) return "12:00 PM";
+  return h > 12 ? `${h - 12}:00 PM` : `${h}:00 AM`;
+}
+
+export function getShopTimeInfo() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type: string) => parseInt(parts.find(p => p.type === type)?.value ?? "0", 10);
+
+  const dow = new Date(get("year"), get("month") - 1, get("day")).getDay(); // 0=Sun
+  const hourDecimal = get("hour") + get("minute") / 60;
+  const isSunday = dow === 0;
+  const today = SHOP_SCHEDULE[dow] ?? null;
+
+  const todayHours = today ? `${fmtHour(today.open)} – ${fmtHour(today.close)}` : null;
+  const withinHours = !!(today && hourDecimal >= today.open && hourDecimal < today.close);
+  const minutesUntilClose = today && withinHours ? Math.round((today.close - hourDecimal) * 60) : null;
+  const closingSoon = !!(withinHours && minutesUntilClose !== null && minutesUntilClose <= 30);
+  const shopClosedByHours = !withinHours;
+
+  let nextOpenLabel: string | null = null;
+  for (let i = 1; i <= 7; i++) {
+    const nextDow = (dow + i) % 7;
+    const nextSched = SHOP_SCHEDULE[nextDow];
+    if (nextSched) {
+      nextOpenLabel = i === 1
+        ? `tomorrow at ${fmtHour(nextSched.open)}`
+        : `${DAY_NAMES[nextDow]} at ${fmtHour(nextSched.open)}`;
+      break;
+    }
+  }
+
+  return { isSunday, todayHours, closingSoon, minutesUntilClose, shopClosedByHours, nextOpenLabel };
+}
+
 export function supabase(): SupabaseClient {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";

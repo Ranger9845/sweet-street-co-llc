@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { supabase, setCors, orderToClient, err } from "../_utils";
+import { supabase, setCors, orderToClient, err, getShopTimeInfo } from "../_utils";
 
 async function sendOrderConfirmationEmail(order: Record<string, unknown>, items: unknown[]) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -64,6 +64,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: shopSettings } = await sb.from("settings").select("is_open").eq("id", 1).maybeSingle();
     if (shopSettings && shopSettings.is_open === false) {
       return err(res, 503, "Shop is currently closed. No orders are being accepted.");
+    }
+
+    // Also block when outside posted business hours, regardless of manual toggle
+    const { shopClosedByHours, isSunday } = getShopTimeInfo();
+    if (shopClosedByHours) {
+      return err(res, 503, isSunday
+        ? "Shop is closed on Sundays. Come back Monday!"
+        : "Shop is currently closed. Please check our hours.");
     }
 
     const body = req.body?.data ?? req.body;
