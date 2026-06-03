@@ -10,9 +10,11 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, ScanLine, Package, TrendingDown, Plus,
   X, CheckCircle2, AlertTriangle, DollarSign,
-  ChevronRight, Loader2, Camera, RotateCcw,
+  ChevronRight, Loader2, RotateCcw,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+// Polyfill for Safari and other browsers that lack native BarcodeDetector
+import { BarcodeDetector as BarcodeDetectorPolyfill } from "barcode-detector/pure";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,9 +99,10 @@ function BarcodeScanner({ onDetected, onClose }: ScannerProps) {
 
   useEffect(() => {
     if (!ready) return;
-    const BarcodeDetectorAPI = (window as any).BarcodeDetector;
-    if (!BarcodeDetectorAPI) return;
-    const detector = new BarcodeDetectorAPI({
+    // Use native BarcodeDetector if available, otherwise fall back to the polyfill
+    const DetectorClass: typeof BarcodeDetectorPolyfill =
+      (window as any).BarcodeDetector ?? BarcodeDetectorPolyfill;
+    const detector = new DetectorClass({
       formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"],
     });
     intervalRef.current = setInterval(async () => {
@@ -153,14 +156,6 @@ function BarcodeScanner({ onDetected, onClose }: ScannerProps) {
         {!ready && !error && (
           <div className="absolute inset-0 flex items-center justify-center">
             <Loader2 className="h-8 w-8 text-white animate-spin" />
-          </div>
-        )}
-        {ready && !(window as any).BarcodeDetector && (
-          <div className="absolute bottom-8 left-0 right-0 flex justify-center">
-            <div className="bg-black/80 rounded-xl px-4 py-2 text-center text-white text-sm max-w-xs">
-              Auto-detection not supported on this browser.<br />
-              Type the barcode number manually instead.
-            </div>
           </div>
         )}
       </div>
