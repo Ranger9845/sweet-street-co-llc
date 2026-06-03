@@ -132,7 +132,7 @@ function useLiveCarts(password: string | undefined) {
 
 // ─── LiveCartCard — shows a single in-progress POS cart ──────────────────────
 function LiveCartCard({ cart }: { cart: LiveCart }) {
-  const TAX_RATE = 0.09;
+  const TAX_RATE = 0.0946;
   const tax = Math.round(cart.subtotal * TAX_RATE * 100) / 100;
   const total = cart.subtotal + tax;
   const secsAgo = Math.floor((Date.now() - cart.updatedAt) / 1000);
