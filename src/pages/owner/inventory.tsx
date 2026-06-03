@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { OwnerLayout } from "@/components/layout/owner-layout";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, ScanLine, Package, TrendingDown, Plus,
   X, CheckCircle2, AlertTriangle, DollarSign,
-  ChevronRight, Loader2, RotateCcw,
+  ChevronRight, Loader2, RotateCcw, Camera,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 // Polyfill for Safari and other browsers that lack native BarcodeDetector
@@ -62,6 +62,8 @@ function useOwnerHeaders() {
 }
 
 // ── Barcode scanner ──────────────────────────────────────────────────────────
+// Uses <input type="file" capture="environment"> so the native iOS camera
+// opens directly — no getUserMedia / video stream needed, works on Safari.
 
 interface ScannerProps {
   onDetected: (code: string) => void;
@@ -69,94 +71,89 @@ interface ScannerProps {
 }
 
 function BarcodeScanner({ onDetected, onClose }: ScannerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<"idle" | "processing" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-          setReady(true);
-        }
-      } catch (e: any) {
-        setError(e?.message ?? "Camera access denied");
+  const openPicker = () => {
+    if (fileRef.current) {
+      fileRef.current.value = "";
+      fileRef.current.click();
+    }
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setStatus("processing");
+    try {
+      const bitmap = await createImageBitmap(file);
+      const detector = new BarcodeDetectorPolyfill({
+        formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"],
+      });
+      const barcodes = await detector.detect(bitmap);
+      bitmap.close();
+      if (barcodes.length > 0) {
+        onDetected(barcodes[0].rawValue);
+      } else {
+        setErrorMsg("No barcode found — try getting closer or better lighting.");
+        setStatus("error");
       }
-    })();
-    return () => { mounted = false; stopStream(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    // Use native BarcodeDetector if available, otherwise fall back to the polyfill
-    const DetectorClass: typeof BarcodeDetectorPolyfill =
-      (window as any).BarcodeDetector ?? BarcodeDetectorPolyfill;
-    const detector = new DetectorClass({
-      formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"],
-    });
-    intervalRef.current = setInterval(async () => {
-      if (!videoRef.current) return;
-      try {
-        const barcodes = await detector.detect(videoRef.current);
-        if (barcodes.length > 0) {
-          stopStream();
-          onDetected(barcodes[0].rawValue);
-        }
-      } catch {}
-    }, 400);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
-
-  function stopStream() {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    streamRef.current?.getTracks().forEach(t => t.stop());
-  }
+    } catch (err: any) {
+      setErrorMsg(err?.message ?? "Could not read the photo.");
+      setStatus("error");
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      <div className="flex items-center justify-between p-4">
-        <p className="text-white font-semibold text-sm">Point camera at barcode</p>
-        <button onClick={() => { stopStream(); onClose(); }} className="text-white/70 hover:text-white">
-          <X className="h-6 w-6" />
-        </button>
-      </div>
-      <div className="flex-1 relative overflow-hidden">
-        <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-        {/* Scan target overlay */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-64 h-36 relative">
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-sm" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-sm" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-sm" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-sm" />
-            <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-red-500 -translate-y-0.5 opacity-80" />
-          </div>
-        </div>
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-black/80 rounded-2xl p-6 text-center text-white max-w-xs">
-              <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
-              <p className="font-semibold mb-1">Camera error</p>
-              <p className="text-sm text-white/70">{error}</p>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
+      {/* Hidden file input — capture="environment" opens back camera on mobile */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFile}
+      />
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm text-center space-y-4">
+        {status === "processing" ? (
+          <>
+            <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
+            <p className="font-semibold text-lg">Reading barcode…</p>
+          </>
+        ) : status === "error" ? (
+          <>
+            <AlertTriangle className="h-10 w-10 mx-auto text-amber-500" />
+            <div>
+              <p className="font-bold text-lg">No barcode detected</p>
+              <p className="text-sm text-muted-foreground mt-1">{errorMsg}</p>
             </div>
-          </div>
-        )}
-        {!ready && !error && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 text-white animate-spin" />
-          </div>
+            <Button onClick={openPicker} className="w-full h-12 text-base rounded-xl">
+              <Camera className="h-4 w-4 mr-2" /> Try Again
+            </Button>
+            <button onClick={onClose} className="text-sm text-muted-foreground block w-full py-1">
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <ScanLine className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <p className="font-bold text-lg">Scan Barcode</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Point your camera at the product barcode and take a photo
+              </p>
+            </div>
+            <Button onClick={openPicker} className="w-full h-12 text-base rounded-xl">
+              <Camera className="h-4 w-4 mr-2" /> Open Camera
+            </Button>
+            <button onClick={onClose} className="text-sm text-muted-foreground block w-full py-1">
+              Cancel
+            </button>
+          </>
         )}
       </div>
     </div>
