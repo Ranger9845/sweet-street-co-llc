@@ -1057,23 +1057,6 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
     item._menuItem ?? menuItemMap.get(item.menuItemId);
   const hasRecipe = (order.items ?? []).some((i: any) => !!resolveMenuItem(i));
 
-  // Checklist — expand by quantity so 2× Rebel = 2 individual checkboxes
-  const drinkList = (order.items ?? [])
-    .filter((item: any) => item.menuItemName !== "Tax" && (item.menuItemName || item.menuItemId))
-    .flatMap((item: any) => {
-      const name = item.menuItemName ?? item._menuItem?.name ?? "Drink";
-      const qty = Math.max(1, Number(item.quantity) || 1);
-      return Array.from({ length: qty }, (_, i) => ({
-        key: `${name}-${item.size ?? ''}-${i}`,
-        name,
-        size: item.size ?? null,
-      }));
-    });
-  const showChecklist = drinkList.length >= 2;
-  const [checkedDrinks, setCheckedDrinks] = useState<Set<string>>(() => new Set());
-  const toggleDrink = (key: string) =>
-    setCheckedDrinks(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
-  const allDrinksChecked = drinkList.length > 0 && drinkList.every(d => checkedDrinks.has(d.key));
 
   const stripeColor = variant === "ready" ? "bg-emerald-500" : variant === "preparing" ? "bg-blue-500" : "bg-amber-400";
 
@@ -1179,37 +1162,6 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
             <span>{(order.items ?? []).length} item{(order.items ?? []).length !== 1 ? "s" : ""}</span>
             <span className="font-bold text-slate-700">${(Number(order.totalAmount) || 0).toFixed(2)}</span>
           </div>
-
-          {/* Drink checklist — shown when order has more than 2 drinks */}
-          {showChecklist && (
-            <div className="mb-2 rounded-lg bg-violet-50 border border-violet-100 p-2">
-              <p className="text-[10px] font-bold text-violet-500 uppercase tracking-wider flex items-center gap-1 mb-2">
-                <CheckCircle2 className="h-3 w-3" /> Drink Checklist
-              </p>
-              <div className="space-y-1">
-                {drinkList.map((drink) => {
-                  const checked = checkedDrinks.has(drink.key);
-                  return (
-                    <button key={drink.key} onClick={() => toggleDrink(drink.key)}
-                      className={`w-full flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg transition-colors text-left ${
-                        checked ? "bg-violet-200 text-violet-800" : "bg-white text-slate-700 border border-violet-200"
-                      }`}>
-                      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        checked ? "border-violet-500 bg-violet-500" : "border-violet-300"
-                      }`}>
-                        {checked && <CheckCircle2 className="h-3 w-3 text-white" />}
-                      </div>
-                      <span className={`font-medium ${checked ? "line-through opacity-60" : ""}`}>{drink.name}</span>
-                      {drink.size && <span className="text-slate-400 ml-auto text-[10px]">{drink.size}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-              {allDrinksChecked && (
-                <p className="text-center text-[11px] font-bold text-violet-600 mt-2">✓ All drinks ready!</p>
-              )}
-            </div>
-          )}
 
           {/* Recipe section — shown when menu item matched */}
           {hasRecipe && (
@@ -1580,6 +1532,13 @@ export default function Dashboard() {
 
   // Recipe sheet state — clicking "Mark Ready" on a pending order opens this
   const [recipeOrder, setRecipeOrder] = useState<any | null>(null);
+  const [checkedDrinks, setCheckedDrinks] = useState<Set<string>>(new Set());
+  const toggleDrink = (key: string) =>
+    setCheckedDrinks(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const openRecipeSheet = useCallback((order: any | null) => {
+    setRecipeOrder(order);
+    setCheckedDrinks(new Set());
+  }, []);
 
 
   // Mr. Krabs auto-bump — fires every 90s, refreshes order lists on bump
@@ -1821,7 +1780,7 @@ export default function Dashboard() {
                     enrichedReady.map((order) => (
                       <OrderCard key={order.id} order={order} variant="ready" now={now}
                         onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
-                        onShowRecipe={setRecipeOrder}
+                        onShowRecipe={openRecipeSheet}
                         bumpPending={bumpPending} updatePending={updatePending} />
                     ))
                   )}
@@ -1843,7 +1802,7 @@ export default function Dashboard() {
                       enrichedPending.map((order) => (
                         <OrderCard key={order.id} order={order} variant="pending" now={now}
                           onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
-                          onShowRecipe={setRecipeOrder}
+                          onShowRecipe={openRecipeSheet}
                           bumpPending={bumpPending} updatePending={updatePending} />
                       ))
                     )}
@@ -1863,7 +1822,7 @@ export default function Dashboard() {
                       enrichedPreparing.map((order) => (
                         <OrderCard key={order.id} order={order} variant="preparing" now={now}
                           onBump={handleBump} onMarkPickedUp={handleMarkPickedUp} onUnbump={handleUnbump}
-                          onShowRecipe={setRecipeOrder}
+                          onShowRecipe={openRecipeSheet}
                           bumpPending={bumpPending} updatePending={updatePending} />
                       ))
                     )}
@@ -1879,7 +1838,7 @@ export default function Dashboard() {
                   className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 >
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRecipeOrder(null)} />
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => openRecipeSheet(null)} />
                   <motion.div
                     className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
                     initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
@@ -1891,13 +1850,59 @@ export default function Dashboard() {
                         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Order #{recipeOrder.id}</p>
                         <h2 className="font-bold text-lg text-foreground">{recipeOrder.customerName}</h2>
                       </div>
-                      <button onClick={() => setRecipeOrder(null)} className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-lg font-bold">×</button>
+                      <button onClick={() => openRecipeSheet(null)} className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-lg font-bold">×</button>
                     </div>
 
                     {/* Recipe content */}
                     <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+                      {/* Drink checklist — shown when order has 2+ drinks */}
+                      {(() => {
+                        const drinkList = (recipeOrder.items ?? [])
+                          .filter((item: any) => item.menuItemName !== "Tax" && (item.menuItemName || item.menuItemId))
+                          .flatMap((item: any) => {
+                            const name = item.menuItemName ?? item._menuItem?.name ?? "Drink";
+                            const qty = Math.max(1, Number(item.quantity) || 1);
+                            return Array.from({ length: qty }, (_, i) => ({
+                              key: `${name}-${item.size ?? ''}-${i}`,
+                              name,
+                              size: item.size ?? null,
+                            }));
+                          });
+                        if (drinkList.length < 2) return null;
+                        const allChecked = drinkList.length > 0 && drinkList.every((d: any) => checkedDrinks.has(d.key));
+                        return (
+                          <div className="rounded-xl bg-violet-50 border border-violet-100 p-3">
+                            <p className="text-[11px] font-bold text-violet-500 uppercase tracking-wider flex items-center gap-1 mb-2">
+                              <CheckCircle2 className="h-3 w-3" /> Drink Checklist
+                            </p>
+                            <div className="space-y-1.5">
+                              {drinkList.map((drink: any) => {
+                                const checked = checkedDrinks.has(drink.key);
+                                return (
+                                  <button key={drink.key} onClick={() => toggleDrink(drink.key)}
+                                    className={`w-full flex items-center gap-2 text-sm px-3 py-2 rounded-lg transition-colors text-left ${
+                                      checked ? "bg-violet-200 text-violet-800" : "bg-white text-slate-700 border border-violet-200"
+                                    }`}>
+                                    <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                      checked ? "border-violet-500 bg-violet-500" : "border-violet-300"
+                                    }`}>
+                                      {checked && <CheckCircle2 className="h-3 w-3 text-white" />}
+                                    </div>
+                                    <span className={`font-medium ${checked ? "line-through opacity-60" : ""}`}>{drink.name}</span>
+                                    {drink.size && <span className="text-slate-400 ml-auto text-xs">{drink.size}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {allChecked && (
+                              <p className="text-center text-xs font-bold text-violet-600 mt-2">✓ All drinks ready!</p>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {(recipeOrder.items ?? []).map((item: any, idx: number) => {
-                        const menuItem = (recipeOrder.menuItems ?? []).find((m: any) => m.id === item.menuItemId);
+                        const menuItem = item._menuItem ?? (recipeOrder.menuItems ?? []).find((m: any) => m.id === item.menuItemId);
                         const sizeKey = item.size;
                         const ingredients = sizeKey && menuItem?.sizeIngredients?.[sizeKey]?.length
                           ? menuItem.sizeIngredients[sizeKey]
@@ -1962,7 +1967,7 @@ export default function Dashboard() {
                         disabled={bumpPending}
                         onClick={() => {
                           handleBump(recipeOrder.id, recipeOrder.customerName);
-                          setRecipeOrder(null);
+                          openRecipeSheet(null);
                         }}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Ready
