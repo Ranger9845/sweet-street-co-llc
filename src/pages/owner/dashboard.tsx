@@ -1057,14 +1057,23 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
     item._menuItem ?? menuItemMap.get(item.menuItemId);
   const hasRecipe = (order.items ?? []).some((i: any) => !!resolveMenuItem(i));
 
-  // Checklist — shown when order has 2 or more total drinks
-  const drinkItems = (order.items ?? []).filter((item: any) => item.menuItemName !== "Tax");
-  const totalDrinkCount = drinkItems.reduce((sum: number, d: any) => sum + (Number(d.quantity) || 1), 0);
-  const showChecklist = totalDrinkCount >= 2;
+  // Checklist — expand by quantity so 2× Rebel = 2 individual checkboxes
+  const drinkList = (order.items ?? [])
+    .filter((item: any) => item.menuItemName !== "Tax" && (item.menuItemName || item.menuItemId))
+    .flatMap((item: any) => {
+      const name = item.menuItemName ?? item._menuItem?.name ?? "Drink";
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      return Array.from({ length: qty }, (_, i) => ({
+        key: `${name}-${item.size ?? ''}-${i}`,
+        name,
+        size: item.size ?? null,
+      }));
+    });
+  const showChecklist = drinkList.length >= 2;
   const [checkedDrinks, setCheckedDrinks] = useState<Set<string>>(() => new Set());
   const toggleDrink = (key: string) =>
     setCheckedDrinks(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
-  const allDrinksChecked = drinkItems.length > 0 && drinkItems.every((d: any) => checkedDrinks.has(`${d.menuItemName}-${d.size ?? ''}`));
+  const allDrinksChecked = drinkList.length > 0 && drinkList.every(d => checkedDrinks.has(d.key));
 
   const stripeColor = variant === "ready" ? "bg-emerald-500" : variant === "preparing" ? "bg-blue-500" : "bg-amber-400";
 
@@ -1178,11 +1187,10 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
                 <CheckCircle2 className="h-3 w-3" /> Drink Checklist
               </p>
               <div className="space-y-1">
-                {drinkItems.map((item: any) => {
-                  const key = `${item.menuItemName}-${item.size ?? ''}`;
-                  const checked = checkedDrinks.has(key);
+                {drinkList.map((drink) => {
+                  const checked = checkedDrinks.has(drink.key);
                   return (
-                    <button key={key} onClick={() => toggleDrink(key)}
+                    <button key={drink.key} onClick={() => toggleDrink(drink.key)}
                       className={`w-full flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg transition-colors text-left ${
                         checked ? "bg-violet-200 text-violet-800" : "bg-white text-slate-700 border border-violet-200"
                       }`}>
@@ -1191,10 +1199,8 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
                       }`}>
                         {checked && <CheckCircle2 className="h-3 w-3 text-white" />}
                       </div>
-                      <span className={`font-medium ${checked ? "line-through opacity-60" : ""}`}>
-                        {item.quantity > 1 ? `${item.quantity}× ` : ""}{item.menuItemName}
-                      </span>
-                      {item.size && <span className="text-slate-400 ml-auto text-[10px]">{item.size}</span>}
+                      <span className={`font-medium ${checked ? "line-through opacity-60" : ""}`}>{drink.name}</span>
+                      {drink.size && <span className="text-slate-400 ml-auto text-[10px]">{drink.size}</span>}
                     </button>
                   );
                 })}
