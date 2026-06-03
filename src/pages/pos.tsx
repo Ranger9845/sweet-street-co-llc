@@ -4,10 +4,16 @@ import { Plus, Minus, Trash2, Monitor, CheckCircle2, RotateCcw, XCircle, Wifi, W
 import { CupSpinner } from "@/components/cup-spinner";
 
 type CartItem = {
+  cartKey: string;
   id: number;
   name: string;
   price: number;
   quantity: number;
+  size: string | null;
+  temperature: "hot" | "cold" | null;
+  milk: string | null;
+  lotusBase: string | null;
+  specialInstructions: string | null;
 };
 
 type OrderResult = {
@@ -57,6 +63,14 @@ export default function POS() {
   const [squareConfig, setSquareConfig] = useState<SquareConfig>(null);
   const [readerAwaitingConfirm, setReaderAwaitingConfirm] = useState(false);
 
+  // Customization modal state
+  const [customizingItem, setCustomizingItem] = useState<typeof availableItems[0] | null>(null);
+  const [custSize, setCustSize] = useState<string>("");
+  const [custTemp, setCustTemp] = useState<"hot" | "cold" | null>(null);
+  const [custMilk, setCustMilk] = useState<string>("");
+  const [custLotus, setCustLotus] = useState<string>("");
+  const [custNotes, setCustNotes] = useState<string>("");
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const taxAmount = Math.round(subtotal * TAX_RATE * 100) / 100;
   const grandTotal = subtotal + taxAmount;
@@ -98,7 +112,14 @@ export default function POS() {
           customerName: customerName || "Walk-in",
           items: cart.map((item) => ({
             menuItemId: item.id,
+            menuItemName: item.name,
             quantity: item.quantity,
+            size: item.size,
+            unitPrice: item.price,
+            temperature: item.temperature,
+            milk: item.milk,
+            lotusBase: item.lotusBase,
+            specialInstructions: item.specialInstructions,
           })),
         }),
       });
@@ -202,7 +223,17 @@ export default function POS() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerName: customerName || "Walk-in",
-          items: cart.map((item) => ({ menuItemId: item.id, quantity: item.quantity })),
+          items: cart.map((item) => ({
+            menuItemId: item.id,
+            menuItemName: item.name,
+            quantity: item.quantity,
+            size: item.size,
+            unitPrice: item.price,
+            temperature: item.temperature,
+            milk: item.milk,
+            lotusBase: item.lotusBase,
+            specialInstructions: item.specialInstructions,
+          })),
         }),
       });
       if (!res.ok) {
@@ -239,20 +270,42 @@ export default function POS() {
     setReaderAwaitingConfirm(false);
   };
 
-  const addToCart = (item: { id: number; name: string; price: number }) => {
-    setCart((prev) => {
-      const existing = prev.find((c) => c.id === item.id);
-      if (existing) {
-        return prev.map((c) => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c);
-      }
-      return [...prev, { ...item, quantity: 1 }];
-    });
+  const addToCart = (opts: { id: number; name: string; price: number; size?: string | null; temperature?: "hot" | "cold" | null; milk?: string | null; lotusBase?: string | null; specialInstructions?: string | null }) => {
+    const cartKey = `${opts.id}-${opts.size ?? ''}-${Date.now()}`;
+    setCart((prev) => [...prev, { ...opts, cartKey, quantity: 1, size: opts.size ?? null, temperature: opts.temperature ?? null, milk: opts.milk ?? null, lotusBase: opts.lotusBase ?? null, specialInstructions: opts.specialInstructions ?? null }]);
   };
 
-  const updateQty = (id: number, delta: number) => {
+  const updateQty = (cartKey: string, delta: number) => {
     setCart((prev) =>
-      prev.map((c) => c.id === id ? { ...c, quantity: Math.max(0, c.quantity + delta) } : c).filter((c) => c.quantity > 0)
+      prev.map((c) => c.cartKey === cartKey ? { ...c, quantity: Math.max(0, c.quantity + delta) } : c).filter((c) => c.quantity > 0)
     );
+  };
+
+  const openCustomize = (item: typeof availableItems[0]) => {
+    const sizes = Object.keys((item.sizePrices as Record<string, number>) ?? {});
+    setCustSize(sizes.length > 0 ? sizes[0] : "");
+    setCustTemp(null);
+    setCustMilk("");
+    setCustLotus("");
+    setCustNotes("");
+    setCustomizingItem(item);
+  };
+
+  const confirmCustomize = () => {
+    if (!customizingItem) return;
+    const sp = (customizingItem.sizePrices as Record<string, number>) ?? {};
+    const price = (custSize && sp[custSize]) ? sp[custSize] : (customizingItem.price ?? Object.values(sp)[0] ?? 0);
+    addToCart({
+      id: customizingItem.id,
+      name: customizingItem.name,
+      price: price as number,
+      size: custSize || null,
+      temperature: custTemp,
+      milk: custMilk || null,
+      lotusBase: custLotus || null,
+      specialInstructions: custNotes || null,
+    });
+    setCustomizingItem(null);
   };
 
   const newOrder = () => {
@@ -298,6 +351,7 @@ export default function POS() {
   ];
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-[#fdf2f0] to-[#fce8f0] flex flex-col lg:flex-row">
       {/* Menu */}
       <div className="flex-1 p-6 overflow-auto">
@@ -307,11 +361,11 @@ export default function POS() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {availableItems.map((item) => {
-            const inCart = cart.find((c) => c.id === item.id);
+            const inCart = cart.filter((c) => c.id === item.id).reduce((s, c) => s + c.quantity, 0);
             return (
               <button
                 key={item.id}
-                onClick={() => addToCart({ id: item.id, name: item.name, price: item.price ?? 0 })}
+                onClick={() => openCustomize(item)}
                 disabled={processing}
                 className={`relative bg-white rounded-xl p-4 text-left shadow-sm border-2 transition-all duration-200 hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                   inCart ? "border-[#7c3d5e] bg-pink-50/50" : "border-transparent hover:border-pink-200"
@@ -417,36 +471,35 @@ export default function POS() {
           ) : (
             <div className="space-y-3">
               {cart.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-800 text-sm truncate">{item.name}</p>
-                    <p className="text-xs text-gray-500">${item.price.toFixed(2)} each</p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => updateQty(item.id, -1)}
-                      disabled={processing}
-                      className="h-7 w-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-50"
-                    >
-                      <Minus className="h-3 w-3" />
+                <div key={item.cartKey} className="bg-gray-50 rounded-xl p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-800 text-sm">{item.name}{item.size ? ` · ${item.size}` : ""}</p>
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {item.temperature === "hot" && <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">🔥 Hot</span>}
+                        {item.temperature === "cold" && <span className="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full">❄️ Cold</span>}
+                        {item.milk && <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">🥛 {item.milk}</span>}
+                        {item.lotusBase && <span className="text-[10px] bg-lime-100 text-lime-700 px-1.5 py-0.5 rounded-full">⚡ {item.lotusBase}</span>}
+                      </div>
+                      {item.specialInstructions && <p className="text-[10px] text-amber-700 mt-0.5 italic">{item.specialInstructions}</p>}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => updateQty(item.cartKey, -1)} disabled={processing}
+                        className="h-7 w-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-50">
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
+                      <button onClick={() => updateQty(item.cartKey, 1)} disabled={processing}
+                        className="h-7 w-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-50">
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <p className="font-bold text-sm w-16 text-right">${(item.price * item.quantity).toFixed(2)}</p>
+                    <button onClick={() => setCart((prev) => prev.filter((c) => c.cartKey !== item.cartKey))} disabled={processing}
+                      className="h-7 w-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50">
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
-                    <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQty(item.id, 1)}
-                      disabled={processing}
-                      className="h-7 w-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-50"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
                   </div>
-                  <p className="font-bold text-sm w-16 text-right">${(item.price * item.quantity).toFixed(2)}</p>
-                  <button
-                    onClick={() => setCart((prev) => prev.filter((c) => c.id !== item.id))}
-                    disabled={processing}
-                    className="h-7 w-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
                 </div>
               ))}
             </div>
@@ -594,5 +647,89 @@ export default function POS() {
         </div>
       </div>
     </div>
+
+    {/* Customization modal */}
+
+    {customizingItem && (() => {
+      const sizes = Object.keys((customizingItem.sizePrices as Record<string, number>) ?? {});
+      const milkOptions = ["None", "Oat Milk", "Almond Milk", "Coconut Milk", "Nonfat Milk", "Whole Milk"];
+      const lotusOptions = ["None", "White Gummy Bear", "Black Cherry", "Strawberry", "Grape", "Passion Fruit", "Blue Raspberry"];
+      return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setCustomizingItem(null)}>
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#7c3d5e]">{customizingItem.name}</h2>
+                <button onClick={() => setCustomizingItem(null)} className="h-8 w-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 text-xl">×</button>
+              </div>
+
+              {sizes.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Size</p>
+                  <div className="flex flex-wrap gap-2">
+                    {sizes.map((s) => (
+                      <button key={s} onClick={() => setCustSize(s)}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${custSize === s ? "border-[#7c3d5e] bg-[#7c3d5e] text-white" : "border-gray-200 text-gray-700 hover:border-[#7c3d5e]"}`}>
+                        {s} · ${((customizingItem.sizePrices as Record<string,number>)[s] ?? 0).toFixed(2)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Temperature</p>
+                <div className="flex gap-2">
+                  {(["cold", "hot"] as const).map((t) => (
+                    <button key={t} onClick={() => setCustTemp(custTemp === t ? null : t)}
+                      className={`flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${custTemp === t ? "border-[#7c3d5e] bg-[#7c3d5e] text-white" : "border-gray-200 text-gray-700 hover:border-[#7c3d5e]"}`}>
+                      {t === "hot" ? "🔥 Hot" : "❄️ Cold"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Milk</p>
+                <div className="flex flex-wrap gap-2">
+                  {milkOptions.map((m) => (
+                    <button key={m} onClick={() => setCustMilk(m === "None" ? "" : m)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all ${(m === "None" ? custMilk === "" : custMilk === m) ? "border-[#7c3d5e] bg-[#7c3d5e] text-white" : "border-gray-200 text-gray-700 hover:border-[#7c3d5e]"}`}>
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Lotus Energy Base</p>
+                <div className="flex flex-wrap gap-2">
+                  {lotusOptions.map((l) => (
+                    <button key={l} onClick={() => setCustLotus(l === "None" ? "" : l)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all ${(l === "None" ? custLotus === "" : custLotus === l) ? "border-[#7c3d5e] bg-[#7c3d5e] text-white" : "border-gray-200 text-gray-700 hover:border-[#7c3d5e]"}`}>
+                      {l === "None" ? "None" : `⚡ ${l}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Special Instructions</p>
+                <textarea value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={2}
+                  placeholder="Any special requests..."
+                  className="w-full px-3 py-2 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3d5e]/30 resize-none" />
+              </div>
+
+              <button onClick={confirmCustomize}
+                disabled={sizes.length > 0 && !custSize}
+                className="w-full py-3.5 bg-[#7c3d5e] hover:bg-[#6b3450] disabled:opacity-50 text-white rounded-xl text-base font-bold transition-colors">
+                Add to Order
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
+    </>
   );
 }

@@ -1214,8 +1214,13 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
               {(order.items ?? []).map((item: any, idx: number) => {
                 const matched = resolveMenuItem(item) as any;
                 if (!matched) return null;
-                const ingredients = matched.ingredients ?? [];
-                const steps = matched.prepSteps ?? [];
+                const sizeKey = item.size;
+                const ingredients = (sizeKey && matched.sizeIngredients?.[sizeKey]?.length)
+                  ? matched.sizeIngredients[sizeKey]
+                  : matched.ingredients ?? [];
+                const steps = (sizeKey && matched.sizePrepSteps?.[sizeKey]?.length)
+                  ? matched.sizePrepSteps[sizeKey]
+                  : matched.prepSteps ?? matched.prep_steps ?? [];
                 return (
                   <div key={idx} className="text-xs">
                     <p className="font-semibold text-blue-800 mb-1">{matched.name}</p>

@@ -29,6 +29,7 @@ import visitorsHeartbeatHandler from "./api/visitors/heartbeat.js";
 import visitorsCountHandler from "./api/visitors/count.js";
 import paymentsConfigHandler from "./api/payments/config.js";
 import paymentsProcessHandler from "./api/payments/process.js";
+import paymentsPoscashHandler from "./api/payments/pos/cash.js";
 import discountCodesValidateHandler from "./api/discount-codes/validate.js";
 import discountCodesHandler from "./api/discount-codes/index.js";
 import discountCodeByIdHandler from "./api/discount-codes/[id].js";
@@ -109,6 +110,7 @@ app.all("/api/visitors/count", adapt(visitorsCountHandler));
 // Payments
 app.all("/api/payments/config", adapt(paymentsConfigHandler));
 app.all("/api/payments/process", adapt(paymentsProcessHandler));
+app.all("/api/payments/pos/cash", adapt(paymentsPoscashHandler));
 
 // Square Loyalty
 app.all("/api/loyalty/account", adapt(loyaltyAccountHandler));
