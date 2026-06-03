@@ -14,7 +14,12 @@ const BUG_KEYWORDS = [
 ];
 
 // Preset issue IDs from the feedback widget that always indicate a bug
-const BUG_ISSUE_IDS = new Set(["app_broken", "payment_issue", "order_wrong", "missing_item"]);
+const BUG_ISSUE_IDS = new Set([
+  // Customer presets
+  "app_broken", "payment_issue", "order_wrong", "missing_item",
+  // Owner presets (added in 7eaed07 but never registered here)
+  "dashboard_issue", "order_mgmt", "menu_issue", "square_issue", "settings_issue", "bug_error",
+]);
 
 function looksLikeBugReport(text: string, issueId?: string | null): boolean {
   if (issueId && BUG_ISSUE_IDS.has(issueId)) return true;
