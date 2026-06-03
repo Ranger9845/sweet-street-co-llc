@@ -1540,6 +1540,25 @@ export default function Dashboard() {
     setCheckedDrinks(new Set());
   }, []);
 
+  // Derived checklist values — computed from the currently open recipe order
+  const recipeOrderDrinkList = useMemo(() => {
+    if (!recipeOrder) return [] as { key: string; name: string; size: string | null }[];
+    return (recipeOrder.items ?? [])
+      .filter((item: any) => item.menuItemName !== "Tax" && (item.menuItemName || item.menuItemId))
+      .flatMap((item: any) => {
+        const name = item.menuItemName ?? item._menuItem?.name ?? "Drink";
+        const qty = Math.max(1, Number(item.quantity) || 1);
+        return Array.from({ length: qty }, (_, i) => ({
+          key: `${name}-${item.size ?? ''}-${i}`,
+          name,
+          size: item.size ?? null as string | null,
+        }));
+      });
+  }, [recipeOrder]);
+  const allDrinksChecked = recipeOrderDrinkList.length > 0 && recipeOrderDrinkList.every(d => checkedDrinks.has(d.key));
+  // Checklist is only shown — and blocks Mark Ready — when the order is being prepared
+  const showDrinkChecklist = recipeOrderDrinkList.length >= 2 && recipeOrder?.status === "preparing";
+  const markReadyBlocked = showDrinkChecklist && !allDrinksChecked;
 
   // Mr. Krabs auto-bump — fires every 90s, refreshes order lists on bump
   useAutoBump(password, useCallback((result: AutoBumpResult) => {
@@ -1855,51 +1874,36 @@ export default function Dashboard() {
 
                     {/* Recipe content */}
                     <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
-                      {/* Drink checklist — shown when order has 2+ drinks */}
-                      {(() => {
-                        const drinkList = (recipeOrder.items ?? [])
-                          .filter((item: any) => item.menuItemName !== "Tax" && (item.menuItemName || item.menuItemId))
-                          .flatMap((item: any) => {
-                            const name = item.menuItemName ?? item._menuItem?.name ?? "Drink";
-                            const qty = Math.max(1, Number(item.quantity) || 1);
-                            return Array.from({ length: qty }, (_, i) => ({
-                              key: `${name}-${item.size ?? ''}-${i}`,
-                              name,
-                              size: item.size ?? null,
-                            }));
-                          });
-                        if (drinkList.length < 2) return null;
-                        const allChecked = drinkList.length > 0 && drinkList.every((d: any) => checkedDrinks.has(d.key));
-                        return (
-                          <div className="rounded-xl bg-violet-50 border border-violet-100 p-3">
-                            <p className="text-[11px] font-bold text-violet-500 uppercase tracking-wider flex items-center gap-1 mb-2">
-                              <CheckCircle2 className="h-3 w-3" /> Drink Checklist
-                            </p>
-                            <div className="space-y-1.5">
-                              {drinkList.map((drink: any) => {
-                                const checked = checkedDrinks.has(drink.key);
-                                return (
-                                  <button key={drink.key} onClick={() => toggleDrink(drink.key)}
-                                    className={`w-full flex items-center gap-2 text-sm px-3 py-2 rounded-lg transition-colors text-left ${
-                                      checked ? "bg-violet-200 text-violet-800" : "bg-white text-slate-700 border border-violet-200"
-                                    }`}>
-                                    <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                      checked ? "border-violet-500 bg-violet-500" : "border-violet-300"
-                                    }`}>
-                                      {checked && <CheckCircle2 className="h-3 w-3 text-white" />}
-                                    </div>
-                                    <span className={`font-medium ${checked ? "line-through opacity-60" : ""}`}>{drink.name}</span>
-                                    {drink.size && <span className="text-slate-400 ml-auto text-xs">{drink.size}</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {allChecked && (
-                              <p className="text-center text-xs font-bold text-violet-600 mt-2">✓ All drinks ready!</p>
-                            )}
+                      {/* Drink checklist — only shown for preparing orders with 2+ drinks */}
+                      {showDrinkChecklist && (
+                        <div className="rounded-xl bg-violet-50 border border-violet-100 p-3">
+                          <p className="text-[11px] font-bold text-violet-500 uppercase tracking-wider flex items-center gap-1 mb-2">
+                            <CheckCircle2 className="h-3 w-3" /> Drink Checklist
+                          </p>
+                          <div className="space-y-1.5">
+                            {recipeOrderDrinkList.map((drink) => {
+                              const checked = checkedDrinks.has(drink.key);
+                              return (
+                                <button key={drink.key} onClick={() => toggleDrink(drink.key)}
+                                  className={`w-full flex items-center gap-2 text-sm px-3 py-2 rounded-lg transition-colors text-left ${
+                                    checked ? "bg-violet-200 text-violet-800" : "bg-white text-slate-700 border border-violet-200"
+                                  }`}>
+                                  <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                    checked ? "border-violet-500 bg-violet-500" : "border-violet-300"
+                                  }`}>
+                                    {checked && <CheckCircle2 className="h-3 w-3 text-white" />}
+                                  </div>
+                                  <span className={`font-medium ${checked ? "line-through opacity-60" : ""}`}>{drink.name}</span>
+                                  {drink.size && <span className="text-slate-400 ml-auto text-xs">{drink.size}</span>}
+                                </button>
+                              );
+                            })}
                           </div>
-                        );
-                      })()}
+                          {allDrinksChecked && (
+                            <p className="text-center text-xs font-bold text-violet-600 mt-2">✓ All drinks ready!</p>
+                          )}
+                        </div>
+                      )}
 
                       {(recipeOrder.items ?? []).map((item: any, idx: number) => {
                         const menuItem = item._menuItem ?? (recipeOrder.menuItems ?? []).find((m: any) => m.id === item.menuItemId);
@@ -1962,9 +1966,16 @@ export default function Dashboard() {
 
                     {/* Mark Ready button */}
                     <div className="px-5 pb-5 pt-3 border-t border-border/60 shrink-0">
+                      {markReadyBlocked && (
+                        <p className="text-center text-xs text-violet-600 font-medium mb-2">Check off all drinks before marking ready</p>
+                      )}
                       <Button
-                        className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-sm"
-                        disabled={bumpPending}
+                        className={`w-full h-12 text-base font-semibold rounded-xl shadow-sm transition-colors ${
+                          markReadyBlocked
+                            ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                            : "bg-primary hover:bg-primary/90 text-white"
+                        }`}
+                        disabled={bumpPending || markReadyBlocked}
                         onClick={() => {
                           handleBump(recipeOrder.id, recipeOrder.customerName);
                           openRecipeSheet(null);
