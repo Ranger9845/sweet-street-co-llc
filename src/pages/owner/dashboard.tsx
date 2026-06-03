@@ -54,7 +54,7 @@ function matchSquareItemToMenu(squareName: string, menuMap: Map<number, any>): a
   return null;
 }
 
-// ─── useSquareRecentOrders — fetches completed orders from today ──────────────
+// ─── useSquareRecentOrders — polls every 10 seconds ──────────────────────────
 function useSquareRecentOrders() {
   const [orders, setOrders] = useState<SquareOrder[]>([]);
   useEffect(() => {
@@ -69,185 +69,10 @@ function useSquareRecentOrders() {
       } catch { /* silent */ }
     };
     poll();
-    const id = setInterval(poll, 30000);
+    const id = setInterval(poll, 10000);
     return () => { active = false; clearInterval(id); };
   }, []);
   return orders;
-}
-
-// ─── useSquareActiveOrders — polls every 5 seconds ───────────────────────────
-function useSquareActiveOrders() {
-  const [orders, setOrders] = useState<SquareOrder[]>([]);
-  useEffect(() => {
-    let active = true;
-    const poll = async () => {
-      try {
-        const r = await fetch("/api/square/active-orders");
-        if (r.ok && active) {
-          const d = await r.json() as { orders: SquareOrder[] };
-          setOrders(d.orders ?? []);
-        }
-      } catch { /* silent */ }
-    };
-    poll();
-    const id = setInterval(poll, 5000);
-    return () => { active = false; clearInterval(id); };
-  }, []);
-  return orders;
-}
-
-// ─── SquarePosLiveSection ─────────────────────────────────────────────────────
-function SquarePosLiveSection({ menuItemsById }: { menuItemsById: Map<number, any> }) {
-  const orders = useSquareActiveOrders();
-  const [expandedRecipes, setExpandedRecipes] = useState<Set<string>>(new Set());
-
-  const toggleRecipe = (key: string) => {
-    setExpandedRecipes((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  };
-
-  const hasOrders = orders.length > 0;
-
-  return (
-    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/30 p-4 shadow-sm">
-      {/* Section header */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="relative flex h-2.5 w-2.5">
-          {hasOrders ? (
-            <>
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-            </>
-          ) : (
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-300" />
-          )}
-        </span>
-        <h2 className="font-bold text-foreground text-base">Square POS — Live</h2>
-        <span className={`ml-auto text-sm font-bold px-2.5 py-0.5 rounded-full border ${
-          hasOrders
-            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-            : "bg-muted text-muted-foreground border-border"
-        }`}>
-          {orders.length}
-        </span>
-        <span className="text-[10px] text-muted-foreground/60 ml-1">updates every 5s</span>
-      </div>
-
-      {!hasOrders ? (
-        <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-emerald-200/60 rounded-xl bg-white/50">
-          <ShoppingBag className="h-7 w-7 text-muted-foreground/40 mb-2" />
-          <p className="text-sm font-medium text-muted-foreground">No active POS orders</p>
-          <p className="text-xs text-muted-foreground/60 mt-0.5">Open orders will appear here in real time</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <AnimatePresence mode="popLayout">
-            {orders.map((order) => {
-              const shortId = order.id.slice(-6).toUpperCase();
-              const total = order.total_money ? (order.total_money.amount / 100).toFixed(2) : "—";
-              const createdAgo = formatDistanceToNowStrict(new Date(order.created_at), { addSuffix: true });
-              return (
-                <motion.div
-                  key={order.id}
-                  layout
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                  transition={{ type: "spring", stiffness: 280, damping: 26 }}
-                >
-                  <div className="relative rounded-xl border border-emerald-200 bg-white overflow-hidden shadow-sm">
-                    {/* Left stripe */}
-                    <div className="absolute left-0 inset-y-0 w-1.5 bg-emerald-500" />
-                    <div className="pl-5 pr-4 pt-3 pb-3">
-                      {/* Header */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">#{shortId}</span>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full leading-none">
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-                            </span>
-                            {order.state}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground/70 shrink-0">{createdAgo}</span>
-                      </div>
-
-                      {/* Line items */}
-                      <div className="space-y-1.5 mb-3">
-                        {(order.line_items ?? []).map((item, idx) => {
-                          const recipeKey = `${order.id}:${idx}`;
-                          const matched = matchSquareItemToMenu(item.name, menuItemsById);
-                          const ingredients = matched?.ingredients ?? [];
-                          const steps = matched?.prepSteps ?? matched?.prep_steps ?? [];
-                          const hasRecipe = ingredients.length > 0 || steps.length > 0;
-                          const isExpanded = expandedRecipes.has(recipeKey);
-                          return (
-                            <div key={idx} className="text-xs">
-                              <div className="flex items-baseline gap-1">
-                                <span className="font-bold text-slate-600 tabular-nums">{item.quantity}×</span>
-                                <span className="font-medium text-slate-800">{item.name}</span>
-                                {item.variation_name && (
-                                  <span className="text-slate-400">({item.variation_name})</span>
-                                )}
-                              </div>
-                              {hasRecipe && (
-                                <button
-                                  onClick={() => toggleRecipe(recipeKey)}
-                                  className="ml-4 mt-0.5 flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors"
-                                >
-                                  <ChefHat className="h-3 w-3" />
-                                  {isExpanded ? "Hide recipe" : "Show recipe"}
-                                </button>
-                              )}
-                              {hasRecipe && isExpanded && (
-                                <div className="ml-4 mt-1 rounded-lg bg-blue-50 border border-blue-100 px-2.5 py-2 space-y-1">
-                                  {ingredients.length > 0 && (
-                                    <ul className="space-y-0.5">
-                                      {ingredients.map((ing: any, i: number) => (
-                                        <li key={i} className="text-blue-700 flex gap-1.5">
-                                          <span className="text-blue-400 shrink-0">•</span>
-                                          <span>{ing.amount} {ing.name}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                  {steps.length > 0 && (
-                                    <ol className="space-y-0.5 mt-1">
-                                      {steps.map((step: any, i: number) => (
-                                        <li key={i} className="text-blue-700 flex gap-1.5">
-                                          <span className="font-bold text-blue-500 shrink-0 tabular-nums">{step.stepNumber ?? i + 1}.</span>
-                                          <span>{step.instruction}</span>
-                                        </li>
-                                      ))}
-                                    </ol>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Total */}
-                      <div className="border-t border-slate-100 pt-2 flex items-center justify-between text-xs">
-                        <span className="text-slate-400 font-medium">{(order.line_items ?? []).length} item{(order.line_items ?? []).length !== 1 ? "s" : ""}</span>
-                        <span className="font-bold text-slate-700">${total}</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ─── Live cart types ──────────────────────────────────────────────────────────
@@ -517,6 +342,127 @@ function OpenCloseToggle() {
       {isOpen ? "Shop Open" : "Shop Closed"}
       <span className="text-[10px] font-normal opacity-60 ml-1">(tap to {isOpen ? "close" : "open"})</span>
     </button>
+  );
+}
+
+// ─── SquareAnalyticsSection — today's Square data ────────────────────────────
+function SquareAnalyticsSection() {
+  const orders = useSquareRecentOrders();
+
+  const totalRevenue = orders.reduce((s, o) => s + (o.total_money?.amount ?? 0), 0) / 100;
+  const orderCount = orders.length;
+  const avgOrder = orderCount > 0 ? totalRevenue / orderCount : 0;
+
+  // Item frequency across all completed orders
+  const itemCounts = new Map<string, number>();
+  orders.forEach(o => {
+    (o.line_items ?? []).forEach(item => {
+      itemCounts.set(item.name, (itemCounts.get(item.name) ?? 0) + parseInt(item.quantity || "1", 10));
+    });
+  });
+  const topItems = [...itemCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Hourly breakdown in Chicago time
+  const hourlyMap = new Map<number, { orders: number; revenue: number }>();
+  orders.forEach(o => {
+    const h = parseInt(
+      new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", hour12: false }).format(new Date(o.created_at)),
+      10
+    ) % 24;
+    const prev = hourlyMap.get(h) ?? { orders: 0, revenue: 0 };
+    hourlyMap.set(h, { orders: prev.orders + 1, revenue: prev.revenue + (o.total_money?.amount ?? 0) / 100 });
+  });
+  const hourlyData = Array.from({ length: 24 }, (_, h) => {
+    const d = hourlyMap.get(h) ?? { orders: 0, revenue: 0 };
+    const label = h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`;
+    return { hour: h, label, ...d };
+  }).filter(h => h.hour >= 7 && h.hour <= 20);
+
+  return (
+    <div className="rounded-2xl border border-border bg-white shadow-sm p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Receipt className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-base font-bold text-foreground">Square Sales — Today</h3>
+        <span className="ml-auto text-xs bg-slate-100 text-slate-600 border border-slate-200 font-bold px-2 py-0.5 rounded-full">
+          {orderCount} {orderCount === 1 ? "order" : "orders"}
+        </span>
+      </div>
+
+      {orderCount === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-slate-200 rounded-xl">
+          <Receipt className="h-7 w-7 text-muted-foreground/40 mb-2" />
+          <p className="text-sm font-medium text-muted-foreground">No Square orders yet today</p>
+          <p className="text-xs text-muted-foreground/60 mt-0.5">Completed transactions will appear here</p>
+        </div>
+      ) : (
+        <>
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <div className="text-center rounded-xl bg-emerald-50 border border-emerald-100 py-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Revenue</p>
+              <p className="text-xl font-bold text-emerald-600">${totalRevenue.toFixed(2)}</p>
+            </div>
+            <div className="text-center rounded-xl bg-blue-50 border border-blue-100 py-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Orders</p>
+              <p className="text-xl font-bold text-blue-600">{orderCount}</p>
+            </div>
+            <div className="text-center rounded-xl bg-violet-50 border border-violet-100 py-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Avg Order</p>
+              <p className="text-xl font-bold text-violet-600">${avgOrder.toFixed(2)}</p>
+            </div>
+          </div>
+
+          {/* Hourly bar chart */}
+          {hourlyData.some(h => h.orders > 0) && (
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Orders by Hour (Central)</p>
+              <ResponsiveContainer width="100%" height={110}>
+                <BarChart data={hourlyData} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip
+                    content={({ active, payload, label }: any) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="bg-white border border-slate-200 rounded-lg shadow px-2.5 py-1.5 text-xs">
+                          <p className="font-semibold text-slate-600">{label}</p>
+                          <p className="text-indigo-600">{payload[0].value} {payload[0].value === 1 ? "order" : "orders"}</p>
+                          <p className="text-emerald-600">${Number(payload[1]?.value ?? 0).toFixed(2)}</p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="orders" fill="#6366f1" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="revenue" fill="#10b981" radius={[3, 3, 0, 0]} hide />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Top items */}
+          {topItems.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Top Items</p>
+              <div className="space-y-1.5">
+                {topItems.map(([name, count]) => {
+                  const maxCount = topItems[0][1];
+                  return (
+                    <div key={name} className="flex items-center gap-2">
+                      <span className="text-xs text-foreground font-medium flex-1 truncate">{name}</span>
+                      <div className="w-24 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${Math.round((count / maxCount) * 100)}%` }} />
+                      </div>
+                      <span className="text-xs text-muted-foreground tabular-nums w-5 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1778,9 +1724,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Square POS — Live */}
-            <SquarePosLiveSection menuItemsById={menuItemsById} />
-
             {/* Recent Square POS Sales */}
             <SquarePosRecentSection menuItemsById={menuItemsById} />
 
@@ -1990,6 +1933,9 @@ export default function Dashboard() {
 
           {/* ── Analytics tab ─────────────────────────────────────────── */}
           <TabsContent value="analytics" className="mt-4 space-y-4">
+
+            {/* Square sales summary — primary analytics source */}
+            <SquareAnalyticsSection />
 
             {/* Revenue chart + Rush widget */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
