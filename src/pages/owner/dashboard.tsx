@@ -1036,8 +1036,20 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
 
   const displayNotes = isSquare ? null : order.notes;
   const menuItemMap = new Map((order.menuItems ?? []).map((m: any) => [m.id, m]));
+  const menuItemByName = new Map((order.menuItems ?? []).map((m: any) => [m.name?.toLowerCase()?.trim(), m]));
+  const resolveMenuItem = (item: any) =>
+    menuItemMap.get(item.menuItemId) ?? menuItemByName.get(item.menuItemName?.toLowerCase()?.trim());
   const hasRecipe = (order.menuItems ?? []).length > 0 &&
-    (order.items ?? []).some((i: any) => menuItemMap.has(i.menuItemId));
+    (order.items ?? []).some((i: any) => !!resolveMenuItem(i));
+
+  // Checklist — shown when order has more than 2 total drinks
+  const drinkItems = (order.items ?? []).filter((item: any) => item.menuItemName !== "Tax");
+  const totalDrinkCount = drinkItems.reduce((sum: number, d: any) => sum + (d.quantity ?? 1), 0);
+  const showChecklist = totalDrinkCount > 2;
+  const [checkedDrinks, setCheckedDrinks] = useState<Set<string>>(() => new Set());
+  const toggleDrink = (key: string) =>
+    setCheckedDrinks(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const allDrinksChecked = drinkItems.length > 0 && drinkItems.every((d: any) => checkedDrinks.has(`${d.menuItemName}-${d.size ?? ''}`));
 
   const stripeColor = variant === "ready" ? "bg-emerald-500" : variant === "preparing" ? "bg-blue-500" : "bg-amber-400";
 
@@ -1144,6 +1156,40 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
             <span className="font-bold text-slate-700">${(Number(order.totalAmount) || 0).toFixed(2)}</span>
           </div>
 
+          {/* Drink checklist — shown when order has more than 2 drinks */}
+          {showChecklist && (
+            <div className="mb-2 rounded-lg bg-violet-50 border border-violet-100 p-2">
+              <p className="text-[10px] font-bold text-violet-500 uppercase tracking-wider flex items-center gap-1 mb-2">
+                <CheckCircle2 className="h-3 w-3" /> Drink Checklist
+              </p>
+              <div className="space-y-1">
+                {drinkItems.map((item: any) => {
+                  const key = `${item.menuItemName}-${item.size ?? ''}`;
+                  const checked = checkedDrinks.has(key);
+                  return (
+                    <button key={key} onClick={() => toggleDrink(key)}
+                      className={`w-full flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg transition-colors text-left ${
+                        checked ? "bg-violet-200 text-violet-800" : "bg-white text-slate-700 border border-violet-200"
+                      }`}>
+                      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        checked ? "border-violet-500 bg-violet-500" : "border-violet-300"
+                      }`}>
+                        {checked && <CheckCircle2 className="h-3 w-3 text-white" />}
+                      </div>
+                      <span className={`font-medium ${checked ? "line-through opacity-60" : ""}`}>
+                        {item.quantity > 1 ? `${item.quantity}× ` : ""}{item.menuItemName}
+                      </span>
+                      {item.size && <span className="text-slate-400 ml-auto text-[10px]">{item.size}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {allDrinksChecked && (
+                <p className="text-center text-[11px] font-bold text-violet-600 mt-2">✓ All drinks ready!</p>
+              )}
+            </div>
+          )}
+
           {/* Recipe section — shown when menu item matched */}
           {hasRecipe && (
             <div className="mb-2 rounded-lg bg-blue-50 border border-blue-100 p-2 space-y-2">
@@ -1151,7 +1197,7 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
                 <ChefHat className="h-3 w-3" /> How to Make
               </p>
               {(order.items ?? []).map((item: any, idx: number) => {
-                const matched = menuItemMap.get(item.menuItemId) as any;
+                const matched = resolveMenuItem(item) as any;
                 if (!matched) return null;
                 const ingredients = matched.ingredients ?? [];
                 const steps = matched.prepSteps ?? [];
@@ -1486,14 +1532,25 @@ export default function Dashboard() {
     return map;
   }, [allMenuItems]);
 
+  const menuItemsByName = useMemo(() => {
+    const map = new Map<string, any>();
+    (allMenuItems ?? []).forEach((m: any) => map.set(m.name?.toLowerCase()?.trim(), m));
+    return map;
+  }, [allMenuItems]);
+
   // Enrich a list of orders with the matching menu item data
   const enrich = useCallback((orders: any[] | undefined) =>
     (orders ?? []).map((o: any) => ({
       ...o,
       menuItems: (o.items ?? [])
-        .map((item: any) => menuItemsById.get(item.menuItemId))
+        .map((item: any) => {
+          if (item.menuItemId) return menuItemsById.get(item.menuItemId);
+          // Name-match for Square POS items that have no menuItemId
+          const name = item.menuItemName?.toLowerCase()?.trim();
+          return name ? menuItemsByName.get(name) : undefined;
+        })
         .filter(Boolean),
-    })), [menuItemsById]);
+    })), [menuItemsById, menuItemsByName]);
 
   const enrichedPending   = useMemo(() => enrich(pendingOrders),   [enrich, pendingOrders]);
   const enrichedPreparing = useMemo(() => enrich(preparingOrders), [enrich, preparingOrders]);
