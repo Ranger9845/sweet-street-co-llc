@@ -1,0 +1,76 @@
+name: Award Feedback Points on Fix Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  award-points:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Find linked customer-feedback issue
+        id: issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+
+            // Match "Closes #N", "Fixes #N", "Resolves #N" (case-insensitive)
+            const match = body.match(/(?:closes?|fixes?|resolves?)[^\d#]*#(\d+)/i);
+            if (!match) {
+              console.log('No linked issue reference found in PR body — skipping.');
+              return;
+            }
+
+            const issueNumber = parseInt(match[1], 10);
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+            });
+
+            const hasLabel = issue.labels.some(l => l.name === 'customer-feedback');
+            if (!hasLabel) {
+              console.log(`Issue #${issueNumber} is not a customer-feedback issue — skipping.`);
+              return;
+            }
+
+            const issueBody = issue.body || '';
+            const email      = (issueBody.match(/\*\*Email:\*\*\s*(.+)/))?.[1]?.trim() ?? '';
+            const name       = (issueBody.match(/\*\*From:\*\*\s*(.+)/))?.[1]?.trim()  ?? '';
+            const clerkUserId = (issueBody.match(/\*\*Clerk User ID:\*\*\s*(.+)/))?.[1]?.trim() ?? '';
+
+            if (!email) {
+              console.log('No customer email in issue body — skipping.');
+              return;
+            }
+
+            console.log(`Awarding points to ${email} (issue #${issueNumber})`);
+            core.setOutput('email', email);
+            core.setOutput('name', name);
+            core.setOutput('clerkUserId', clerkUserId);
+            core.setOutput('issueTitle', issue.title);
+
+      - name: Send fix email and award 5 points
+        if: steps.issue.outputs.email != ''
+        env:
+          EMAIL: ${{ steps.issue.outputs.email }}
+          NAME: ${{ steps.issue.outputs.name }}
+          CLERK_USER_ID: ${{ steps.issue.outputs.clerkUserId }}
+          ISSUE_TITLE: ${{ steps.issue.outputs.issueTitle }}
+        run: |
+          curl -sf -X POST https://sweet-street-co-llc.onrender.com/api/send-fix-email \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg to        "$EMAIL" \
+              --arg name      "$NAME" \
+              --arg issue     "$ISSUE_TITLE" \
+              --arg clerk     "$CLERK_USER_ID" \
+              '{to: $to, customerName: $name, issueTitle: $issue, clerkUserId: $clerk}')" \
+            && echo "✓ Fix email sent and 5 points awarded to $EMAIL" \
+            || { echo "send-fix-email call failed"; exit 1; }

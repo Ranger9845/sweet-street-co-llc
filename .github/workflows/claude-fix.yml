@@ -38,7 +38,9 @@ jobs:
             Please:
             1. Read the feedback and determine if it points to a specific, reproducible bug in the code
             2. If yes, find the relevant file(s) and apply a minimal fix
-            3. Open a pull request with the fix and a short description of what you changed and why
+            3. Open a pull request with the fix and a short description of what you changed and why.
+               IMPORTANT: always include "Closes #${{ github.event.issue.number }}" on its own line
+               in the PR body so the issue is linked and closed automatically on merge.
             4. If the feedback is vague or not a code bug (e.g. "I don't like the colors"), add a comment on the issue explaining that no code change is needed
 
             Focus on api/ and src/ directories. Do not touch package.json, vercel.json, or deployment config unless the bug is clearly there.
