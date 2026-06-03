@@ -18,6 +18,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Claude Code Action Official
+        id: claude
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -40,3 +42,13 @@ jobs:
             4. If the feedback is vague or not a code bug (e.g. "I don't like the colors"), add a comment on the issue explaining that no code change is needed
 
             Focus on api/ and src/ directories. Do not touch package.json, vercel.json, or deployment config unless the bug is clearly there.
+
+      - name: Defer to scheduled agent on failure
+        if: steps.claude.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --add-label "retry-pending" \
+            --remove-label "customer-feedback" \
+            --repo ${{ github.repository }}
