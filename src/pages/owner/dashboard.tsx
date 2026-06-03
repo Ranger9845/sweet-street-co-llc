@@ -44,6 +44,22 @@ type SquareOrder = {
   created_at: string;
 };
 
+// ─── fuzzyFindMenuItem — matches Square item names to DB menu items ────────────
+function fuzzyFindMenuItem(squareName: string, menuItems: any[]): any | undefined {
+  if (!squareName || !menuItems.length) return undefined;
+  const norm = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+  const a = norm(squareName);
+  // Exact match first
+  const exact = menuItems.find(m => norm(m.name ?? '') === a);
+  if (exact) return exact;
+  // Substring: one name contains the other (handles "32oz Sweet Tea" ↔ "Sweet Tea")
+  return menuItems.find(m => {
+    const b = norm(m.name ?? '');
+    return b && (a.includes(b) || b.includes(a));
+  });
+}
+
 // ─── useSquareOrderSync — imports new Square COMPLETED orders into the queue ──
 function useSquareOrderSync(queryClient: ReturnType<typeof useQueryClient>) {
   useEffect(() => {
@@ -1036,16 +1052,15 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
 
   const displayNotes = isSquare ? null : order.notes;
   const menuItemMap = new Map((order.menuItems ?? []).map((m: any) => [m.id, m]));
-  const menuItemByName = new Map((order.menuItems ?? []).map((m: any) => [m.name?.toLowerCase()?.trim(), m]));
+  // _menuItem is attached by enrich() — works for both id-matched and fuzzy name-matched items
   const resolveMenuItem = (item: any) =>
-    menuItemMap.get(item.menuItemId) ?? menuItemByName.get(item.menuItemName?.toLowerCase()?.trim());
-  const hasRecipe = (order.menuItems ?? []).length > 0 &&
-    (order.items ?? []).some((i: any) => !!resolveMenuItem(i));
+    item._menuItem ?? menuItemMap.get(item.menuItemId);
+  const hasRecipe = (order.items ?? []).some((i: any) => !!resolveMenuItem(i));
 
-  // Checklist — shown when order has more than 2 total drinks
+  // Checklist — shown when order has 2 or more total drinks
   const drinkItems = (order.items ?? []).filter((item: any) => item.menuItemName !== "Tax");
-  const totalDrinkCount = drinkItems.reduce((sum: number, d: any) => sum + (d.quantity ?? 1), 0);
-  const showChecklist = totalDrinkCount > 2;
+  const totalDrinkCount = drinkItems.reduce((sum: number, d: any) => sum + (Number(d.quantity) || 1), 0);
+  const showChecklist = totalDrinkCount >= 2;
   const [checkedDrinks, setCheckedDrinks] = useState<Set<string>>(() => new Set());
   const toggleDrink = (key: string) =>
     setCheckedDrinks(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
@@ -1532,25 +1547,21 @@ export default function Dashboard() {
     return map;
   }, [allMenuItems]);
 
-  const menuItemsByName = useMemo(() => {
-    const map = new Map<string, any>();
-    (allMenuItems ?? []).forEach((m: any) => map.set(m.name?.toLowerCase()?.trim(), m));
-    return map;
-  }, [allMenuItems]);
-
-  // Enrich a list of orders with the matching menu item data
+  // Enrich a list of orders: attach _menuItem to each item (fuzzy name match for Square)
   const enrich = useCallback((orders: any[] | undefined) =>
-    (orders ?? []).map((o: any) => ({
-      ...o,
-      menuItems: (o.items ?? [])
-        .map((item: any) => {
-          if (item.menuItemId) return menuItemsById.get(item.menuItemId);
-          // Name-match for Square POS items that have no menuItemId
-          const name = item.menuItemName?.toLowerCase()?.trim();
-          return name ? menuItemsByName.get(name) : undefined;
-        })
-        .filter(Boolean),
-    })), [menuItemsById, menuItemsByName]);
+    (orders ?? []).map((o: any) => {
+      const itemsWithMatch = (o.items ?? []).map((item: any) => {
+        const matched = item.menuItemId
+          ? menuItemsById.get(item.menuItemId)
+          : fuzzyFindMenuItem(item.menuItemName ?? '', allMenuItems ?? []);
+        return matched ? { ...item, _menuItem: matched } : item;
+      });
+      return {
+        ...o,
+        items: itemsWithMatch,
+        menuItems: itemsWithMatch.map((i: any) => i._menuItem).filter(Boolean),
+      };
+    }), [menuItemsById, allMenuItems]);
 
   const enrichedPending   = useMemo(() => enrich(pendingOrders),   [enrich, pendingOrders]);
   const enrichedPreparing = useMemo(() => enrich(preparingOrders), [enrich, preparingOrders]);
