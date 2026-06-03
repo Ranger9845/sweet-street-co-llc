@@ -15,6 +15,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          gh label create "retry-pending" --color "FFA500" --description "Queued for scheduled retry" --repo ${{ github.repository }} --force
+          gh label create "customer-feedback" --color "0075ca" --description "Submitted via customer feedback form" --repo ${{ github.repository }} --force
+
           issues=$(gh issue list \
             --repo ${{ github.repository }} \
             --label "retry-pending" \

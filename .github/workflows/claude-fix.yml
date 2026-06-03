@@ -50,6 +50,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          gh label create "retry-pending" --color "FFA500" --description "Queued for scheduled retry" --repo ${{ github.repository }} --force
           gh issue edit ${{ github.event.issue.number }} \
             --add-label "retry-pending" \
             --remove-label "customer-feedback" \
