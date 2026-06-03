@@ -47,6 +47,7 @@ import loyaltyAdjustHandler from "./api/loyalty/adjust.js";
 import userProfileHandler from "./api/user/profile.js";
 import squareActiveOrdersHandler from "./api/square/active-orders.js";
 import squareRecentOrdersHandler from "./api/square/recent-orders.js";
+import squareSyncOrdersHandler from "./api/square/sync-orders.js";
 
 const app = express();
 app.use(express.json());
@@ -117,6 +118,7 @@ app.all("/api/loyalty/adjust", adapt(loyaltyAdjustHandler));
 // Square POS Orders
 app.all("/api/square/active-orders", adapt(squareActiveOrdersHandler));
 app.all("/api/square/recent-orders", adapt(squareRecentOrdersHandler));
+app.all("/api/square/sync-orders", adapt(squareSyncOrdersHandler));
 
 // Discount codes
 app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));
