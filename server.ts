@@ -49,6 +49,10 @@ import userProfileHandler from "./api/user/profile.js";
 import squareActiveOrdersHandler from "./api/square/active-orders.js";
 import squareRecentOrdersHandler from "./api/square/recent-orders.js";
 import squareSyncOrdersHandler from "./api/square/sync-orders.js";
+import inventoryCatalogHandler from "./api/inventory/catalog.js";
+import inventorySearchHandler from "./api/inventory/search.js";
+import inventoryReceiveHandler from "./api/inventory/receive.js";
+import inventoryReportHandler from "./api/inventory/report.js";
 
 const app = express();
 app.use(express.json());
@@ -121,6 +125,12 @@ app.all("/api/loyalty/adjust", adapt(loyaltyAdjustHandler));
 app.all("/api/square/active-orders", adapt(squareActiveOrdersHandler));
 app.all("/api/square/recent-orders", adapt(squareRecentOrdersHandler));
 app.all("/api/square/sync-orders", adapt(squareSyncOrdersHandler));
+
+// Inventory
+app.all("/api/inventory/catalog", adapt(inventoryCatalogHandler));
+app.all("/api/inventory/search", adapt(inventorySearchHandler));
+app.all("/api/inventory/receive", adapt(inventoryReceiveHandler));
+app.all("/api/inventory/report", adapt(inventoryReportHandler));
 
 // Discount codes
 app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));

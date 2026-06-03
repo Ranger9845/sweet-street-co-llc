@@ -32,6 +32,7 @@ import OwnerPOS from "@/pages/pos";
 import POSSetup from "@/pages/owner/pos-setup";
 import Settings from "@/pages/owner/settings";
 import SquarePOSResult from "@/pages/owner/square-pos-result";
+import InventoryManagement from "@/pages/owner/inventory";
 
 const queryClient = new QueryClient();
 
@@ -140,6 +141,7 @@ function Router() {
       <Route path="/owner/reviews">{() => <OwnerRoute component={ReviewsManagement} />}</Route>
       <Route path="/owner/pos">{() => <OwnerRoute component={OwnerPOS} />}</Route>
       <Route path="/owner/pos-setup">{() => <OwnerRoute component={POSSetup} />}</Route>
+      <Route path="/owner/inventory">{() => <OwnerRoute component={InventoryManagement} />}</Route>
       <Route path="/owner/settings">{() => <OwnerRoute component={Settings} />}</Route>
       <Route path="/owner/square-pos-result">{() => <OwnerRoute component={SquarePOSResult} />}</Route>
       <Route path="/owner">{() => <OwnerRoute component={OwnerDashboard} />}</Route>

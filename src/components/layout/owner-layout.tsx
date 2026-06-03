@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { ReactNode, useEffect } from "react";
-import { LayoutDashboard, MenuSquare, Settings, LogOut, Tag, Gift, History, Star } from "lucide-react";
+import { LayoutDashboard, MenuSquare, Settings, LogOut, Tag, Gift, History, Star, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOwnerAuth } from "../owner-auth-provider";
 import { useClerk } from "@clerk/react";
@@ -24,6 +24,7 @@ export function OwnerLayout({ children }: { children: ReactNode }) {
     { href: "/owner/discounts", label: "Discounts", icon: Tag },
     { href: "/owner/rewards", label: "Rewards", icon: Gift },
     { href: "/owner/reviews", label: "Reviews", icon: Star },
+    { href: "/owner/inventory", label: "Inventory", icon: Package },
     { href: "/owner/settings", label: "Settings", icon: Settings },
   ];
 
