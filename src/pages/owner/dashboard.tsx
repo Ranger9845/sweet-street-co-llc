@@ -58,10 +58,19 @@ function matchSquareItemToMenu(squareName: string, menuMap: Map<number, any>): a
 function useSquareRecentOrders() {
   const [orders, setOrders] = useState<SquareOrder[]>([]);
   useEffect(() => {
-    fetch("/api/square/recent-orders")
-      .then(r => r.ok ? r.json() : { orders: [] })
-      .then((d: { orders: SquareOrder[] }) => setOrders(d.orders ?? []))
-      .catch(() => {});
+    let active = true;
+    const poll = async () => {
+      try {
+        const r = await fetch("/api/square/recent-orders");
+        if (r.ok && active) {
+          const d = await r.json() as { orders: SquareOrder[] };
+          setOrders(d.orders ?? []);
+        }
+      } catch { /* silent */ }
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => { active = false; clearInterval(id); };
   }, []);
   return orders;
 }
