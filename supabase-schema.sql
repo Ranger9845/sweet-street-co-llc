@@ -93,13 +93,15 @@ CREATE TABLE IF NOT EXISTS orders (
   paid_at                   timestamptz,
   customer_ready_notified_at timestamptz,
   items                     jsonb       DEFAULT '[]',
+  square_order_id           text        UNIQUE,
   created_at                timestamptz DEFAULT now(),
   updated_at                timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS orders_status_idx      ON orders (status);
-CREATE INDEX IF NOT EXISTS orders_clerk_user_idx  ON orders (clerk_user_id);
-CREATE INDEX IF NOT EXISTS orders_created_at_idx  ON orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS orders_status_idx           ON orders (status);
+CREATE INDEX IF NOT EXISTS orders_clerk_user_idx       ON orders (clerk_user_id);
+CREATE INDEX IF NOT EXISTS orders_created_at_idx       ON orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS orders_square_order_id_idx  ON orders (square_order_id);
 
 -- ── discount_codes ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS discount_codes (
