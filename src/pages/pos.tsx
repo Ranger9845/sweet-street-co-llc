@@ -35,7 +35,7 @@ type SquareConfig = {
   environment: string;
 } | null;
 
-const TAX_RATE = 0.09;
+const TAX_RATE = 0.0946;
 
 export default function POS() {
   const { data: menuItems } = useListMenuItems();
@@ -462,7 +462,7 @@ export default function POS() {
               <span>${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-500">
-              <span>Tax (9%)</span>
+              <span>Tax (9.46%)</span>
               <span>${taxAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-gray-100">

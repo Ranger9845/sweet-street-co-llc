@@ -1,5 +1,88 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { supabase, setCors, requireOwner, err, getShopTimeInfo } from "./_utils";
+import { supabase, setCors, requireOwner, err } from "./_utils";
+
+// Shop schedule in Chicago time. Index = day-of-week (0=Sun).
+type DaySchedule = { open: number; close: number } | null;
+const SCHEDULE: DaySchedule[] = [
+  null,                    // Sun: closed (restock day)
+  { open: 7, close: 19 }, // Mon  7 AM – 7 PM
+  { open: 7, close: 19 }, // Tue
+  { open: 7, close: 19 }, // Wed
+  { open: 7, close: 19 }, // Thu
+  { open: 7, close: 20 }, // Fri  7 AM – 8 PM
+  { open: 8, close: 20 }, // Sat  8 AM – 8 PM
+];
+const HOURS_DISPLAY = [
+  "Closed",
+  "7:00 AM – 7:00 PM",
+  "7:00 AM – 7:00 PM",
+  "7:00 AM – 7:00 PM",
+  "7:00 AM – 7:00 PM",
+  "7:00 AM – 8:00 PM",
+  "8:00 AM – 8:00 PM",
+];
+const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function getCtParts(): { hour: number; minute: number; dow: number } {
+  const now = new Date();
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    weekday: "short",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  });
+  const parts = dtf.formatToParts(now);
+  const get = (t: string) => parseInt(parts.find(p => p.type === t)!.value, 10);
+  const dowMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    hour: get("hour") % 24,
+    minute: get("minute"),
+    dow: dowMap[parts.find(p => p.type === "weekday")!.value] ?? 0,
+  };
+}
+
+function computeScheduleFields(manualOpen: boolean) {
+  const { hour, minute, dow } = getCtParts();
+  const isSunday = dow === 0;
+  const todaySchedule = SCHEDULE[dow];
+  const todayHours = todaySchedule ? HOURS_DISPLAY[dow] : undefined;
+
+  const currentMins = hour * 60 + minute;
+  const withinHours = todaySchedule !== null
+    && currentMins >= todaySchedule.open * 60
+    && currentMins < todaySchedule.close * 60;
+
+  const isOpen = manualOpen && withinHours;
+
+  let minutesUntilClose: number | undefined;
+  let closingSoon = false;
+  if (withinHours && todaySchedule) {
+    minutesUntilClose = todaySchedule.close * 60 - currentMins;
+    closingSoon = minutesUntilClose <= 30;
+  }
+
+  let nextOpenLabel: string | undefined;
+  if (!isOpen) {
+    const fmtHour = (h: number) =>
+      h === 12 ? "12:00 PM" : h > 12 ? `${h - 12}:00 PM` : `${h}:00 AM`;
+    if (todaySchedule && currentMins < todaySchedule.open * 60) {
+      nextOpenLabel = `today at ${fmtHour(todaySchedule.open)}`;
+    } else {
+      for (let d = 1; d <= 7; d++) {
+        const nextDow = (dow + d) % 7;
+        const s = SCHEDULE[nextDow];
+        if (s) {
+          const dayName = d === 1 ? "tomorrow" : DAY_LABELS[nextDow];
+          nextOpenLabel = `${dayName} at ${fmtHour(s.open)}`;
+          break;
+        }
+      }
+    }
+  }
+
+  return { isSunday, isOpen, todayHours, closingSoon, minutesUntilClose, nextOpenLabel };
+}
 
 // Map DB snake_case → app camelCase
 function toClient(row: Record<string, unknown>, includeSecret = false) {
@@ -106,17 +189,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const end = parseTime((data.happy_hour_end as string) ?? "17:00");
     const isHappyHour = !!(data.happy_hour_enabled && hour >= start && hour < end);
 
-    const timeInfo = getShopTimeInfo();
+    const { isSunday, isOpen, todayHours, closingSoon, minutesUntilClose, nextOpenLabel } =
+      computeScheduleFields(!!data.is_open);
+
     return res.json({
       ...client,
       isHappyHour,
-      isOpen: !!data.is_open && !timeInfo.shopClosedByHours,
+      isOpen,
       manualOpen: !!data.is_open,
-      isSunday: timeInfo.isSunday,
-      todayHours: timeInfo.todayHours,
-      closingSoon: timeInfo.closingSoon,
-      minutesUntilClose: timeInfo.minutesUntilClose,
-      nextOpenLabel: timeInfo.nextOpenLabel,
+      isSunday,
+      todayHours,
+      closingSoon,
+      minutesUntilClose,
+      nextOpenLabel,
     });
   }
 

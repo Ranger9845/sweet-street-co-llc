@@ -233,8 +233,7 @@ export default function Checkout() {
   const cappedRewardDiscount = Math.min(rewardDiscount, Math.max(0, total - computedDiscountAmount - happyHourDiscount));
   const discountedTotal = Math.max(0, total - computedDiscountAmount - cappedRewardDiscount - happyHourDiscount);
 
-  // Meeker, Oklahoma combined sales tax: 4.5% state + 1.5% Lincoln County + 3% city = 9%
-  const TAX_RATE = 0.09;
+  const TAX_RATE = 0.0946;
   const taxAmount = Math.round(discountedTotal * TAX_RATE * 100) / 100;
   const grandTotal = discountedTotal + taxAmount;
 
@@ -1117,7 +1116,7 @@ export default function Checkout() {
                   </div>
                 )}
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Tax (9% Meeker, OK)</span>
+                  <span>Tax (9.46%)</span>
                   <span>${taxAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg text-foreground pt-2 border-t-2 border-border/60">
