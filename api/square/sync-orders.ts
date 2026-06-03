@@ -54,22 +54,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (toSync.length === 0) return res.status(200).json({ imported: 0 });
 
-    const rows = toSync.map((o: any) => ({
-      customer_name: "Square POS",
-      status: "pending",
-      source: "square-pos",
-      square_order_id: o.id as string,
-      total_amount: (o.total_money?.amount ?? 0) / 100,
-      paid_at: new Date().toISOString(),
-      items: (o.line_items ?? []).map((item: any) => ({
-        menuItemId: null,
-        menuItemName: item.name as string,
-        quantity: parseInt(item.quantity ?? "1", 10),
-        size: (item.variation_name as string) || null,
-        unitPrice: (item.base_price_money?.amount ?? 0) / 100,
-      })),
-      created_at: o.created_at as string,
-    }));
+    const rows = toSync.map((o: any) => {
+      const lineItems = (o.line_items ?? []).map((item: any) => {
+        const qty = parseInt(item.quantity ?? "1", 10);
+        // gross_sales_money = (base price + modifiers) × qty — correct per-unit effective price
+        const grossCents = item.gross_sales_money?.amount ?? item.base_price_money?.amount ?? 0;
+        return {
+          menuItemId: null,
+          menuItemName: item.name as string,
+          quantity: qty,
+          size: (item.variation_name as string) || null,
+          unitPrice: grossCents / (qty * 100),
+        };
+      });
+
+      // Append a tax line so items sum equals total_amount
+      const taxCents = o.total_tax_money?.amount ?? 0;
+      if (taxCents > 0) {
+        lineItems.push({
+          menuItemId: null,
+          menuItemName: "Tax",
+          quantity: 1,
+          size: null,
+          unitPrice: taxCents / 100,
+        });
+      }
+
+      return {
+        customer_name: "Square POS",
+        status: "pending",
+        source: "square-pos",
+        square_order_id: o.id as string,
+        total_amount: (o.total_money?.amount ?? 0) / 100,
+        paid_at: new Date().toISOString(),
+        items: lineItems,
+        created_at: o.created_at as string,
+      };
+    });
 
     const { error } = await sb.from("orders").insert(rows);
     if (error) {
