@@ -3,12 +3,14 @@ import { ReactNode, useEffect } from "react";
 import { LayoutDashboard, MenuSquare, Settings, LogOut, Tag, Gift, History, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOwnerAuth } from "../owner-auth-provider";
+import { useClerk } from "@clerk/react";
 import { HelpBubble } from "@/components/help-bubble";
 import { FeedbackWidget } from "@/components/feedback-widget";
 
 export function OwnerLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { logout } = useOwnerAuth();
+  const { signOut } = useClerk();
 
   // Log every owner dashboard page visit for diagnostics
   useEffect(() => {
@@ -64,7 +66,7 @@ export function OwnerLayout({ children }: { children: ReactNode }) {
           <Button 
             variant="ghost" 
             className="w-full justify-start gap-3 px-4 py-6 rounded-xl font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors" 
-            onClick={logout}
+            onClick={() => { logout(); signOut(); }}
           >
             <LogOut className="h-5 w-5 text-red-500" />
             <span>Log out</span>

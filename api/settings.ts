@@ -106,8 +106,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const end = parseTime((data.happy_hour_end as string) ?? "17:00");
     const isHappyHour = !!(data.happy_hour_enabled && hour >= start && hour < end);
 
+    const isSunday = new Date().getDay() === 0;
     // Always honour the DB is_open value — never override with computed hours
-    return res.json({ ...client, isHappyHour, isOpen: !!data.is_open, manualOpen: !!data.is_open });
+    return res.json({ ...client, isHappyHour, isOpen: !!data.is_open, manualOpen: !!data.is_open, isSunday });
   }
 
   if (req.method === "PATCH") {
