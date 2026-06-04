@@ -54,6 +54,9 @@ import inventoryCatalogHandler from "./api/inventory/catalog.js";
 import inventorySearchHandler from "./api/inventory/search.js";
 import inventoryReceiveHandler from "./api/inventory/receive.js";
 import inventoryReportHandler from "./api/inventory/report.js";
+import giftCardsPurchaseHandler from "./api/gift-cards/purchase.js";
+import giftCardsBalanceHandler from "./api/gift-cards/balance.js";
+import giftCardsRedeemHandler from "./api/gift-cards/redeem.js";
 
 const app = express();
 app.use(express.json());
@@ -127,6 +130,11 @@ app.all("/api/loyalty/adjust", adapt(loyaltyAdjustHandler));
 app.all("/api/square/active-orders", adapt(squareActiveOrdersHandler));
 app.all("/api/square/recent-orders", adapt(squareRecentOrdersHandler));
 app.all("/api/square/sync-orders", adapt(squareSyncOrdersHandler));
+
+// Gift Cards
+app.all("/api/gift-cards/purchase", adapt(giftCardsPurchaseHandler));
+app.all("/api/gift-cards/balance", adapt(giftCardsBalanceHandler));
+app.all("/api/gift-cards/redeem", adapt(giftCardsRedeemHandler));
 
 // Inventory
 app.all("/api/inventory/catalog", adapt(inventoryCatalogHandler));

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { useCart } from "../cart-provider";
-import { ShoppingCart, LogIn, LogOut, User, Receipt, Clock3, MapPin, Globe, Sparkles, Heart } from "lucide-react";
+import { ShoppingCart, LogIn, LogOut, User, Receipt, Clock3, MapPin, Globe, Sparkles, Heart, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useUser, useClerk, Show } from "@clerk/react";
@@ -287,6 +287,9 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
                     {tag}
                   </span>
                 ))}
+                <Link href="/gift-card" className="text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors flex items-center gap-1">
+                  <Gift className="h-3 w-3" /> Gift Cards
+                </Link>
               </div>
             </div>
 

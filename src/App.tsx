@@ -18,6 +18,7 @@ import OrderStatus from "@/pages/order-status";
 import MyOrders from "@/pages/my-orders";
 import OrderBoard from "@/pages/order-board";
 import Rewards from "@/pages/rewards";
+import GiftCard from "@/pages/gift-card";
 
 // Owner pages
 import OwnerLogin from "@/pages/owner/login";
@@ -130,6 +131,7 @@ function Router() {
       <Route path="/my-orders" component={MyOrders} />
       <Route path="/board" component={OrderBoard} />
       <Route path="/rewards" component={Rewards} />
+      <Route path="/gift-card" component={GiftCard} />
 
       {/* Owner routes */}
       <Route path="/owner/login" component={OwnerLogin} />
