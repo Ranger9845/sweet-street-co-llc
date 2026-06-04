@@ -378,7 +378,7 @@ export default function Home() {
   const [addState, setAddState] = useState<"idle" | "loading" | "done">("idle");
   const [selectedModifiers, setSelectedModifiers] = useState<SelectedModifier[]>([]);
   const [sortBy, setSortBy] = useState<"default" | "name-asc" | "name-desc" | "price-asc" | "price-desc">("default");
-  const [categoryFilter, setCategoryFilter] = useState<"all" | "soda" | "lotus" | "coffee">("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "soda" | "lotus" | "coffee" | "popular">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const cupStageRef = useRef<HTMLDivElement | null>(null);
 
@@ -445,6 +445,7 @@ export default function Home() {
   const hasSoda = rawAvailableItems.some(i => !isLotusDrink(i as LotusDetectable) && !isCoffeeDrink(i as LotusDetectable));
 
   const categoryFiltered = rawAvailableItems.filter(i => {
+    if (categoryFilter === "popular") return popularIds.includes(i.id);
     if (categoryFilter === "lotus") return isLotusDrink(i as LotusDetectable);
     if (categoryFilter === "coffee") return isCoffeeDrink(i as LotusDetectable);
     if (categoryFilter === "soda") return !isLotusDrink(i as LotusDetectable) && !isCoffeeDrink(i as LotusDetectable);
@@ -652,6 +653,14 @@ export default function Home() {
               >
                 All <span className="ml-1 opacity-50">{rawAvailableItems.length}</span>
               </button>
+              {popularIds.length > 0 && (
+                <button
+                  onClick={() => setCategoryFilter("popular")}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200 ${categoryFilter === "popular" ? "bg-orange-500 text-white border-orange-500 shadow-md" : "bg-white/60 backdrop-blur-sm text-foreground/70 border-white/50 hover:bg-white/80 hover:text-foreground shadow-sm"}`}
+                >
+                  🔥 Popular
+                </button>
+              )}
               {hasSoda && (
                 <button
                   onClick={() => setCategoryFilter("soda")}
