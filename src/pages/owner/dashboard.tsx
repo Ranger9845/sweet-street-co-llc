@@ -1556,8 +1556,9 @@ export default function Dashboard() {
       });
   }, [recipeOrder]);
   const allDrinksChecked = recipeOrderDrinkList.length > 0 && recipeOrderDrinkList.every(d => checkedDrinks.has(d.key));
-  // Checklist is only shown — and blocks Mark Ready — when the order is being prepared
-  const showDrinkChecklist = recipeOrderDrinkList.length >= 2 && recipeOrder?.status === "preparing";
+  // Checklist shown (and blocks Mark Ready) for any active order with 2+ drinks
+  const showDrinkChecklist = recipeOrderDrinkList.length >= 2 &&
+    (recipeOrder?.status === "preparing" || recipeOrder?.status === "pending");
   const markReadyBlocked = showDrinkChecklist && !allDrinksChecked;
 
   // Mr. Krabs auto-bump — fires every 90s, refreshes order lists on bump
@@ -1649,8 +1650,9 @@ export default function Dashboard() {
       if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
 
       if (!recipeOrder) {
-        // No sheet open — open it for the first preparing order
-        if (enrichedPreparing.length > 0) openRecipeSheet(enrichedPreparing[0]);
+        // Prefer preparing orders (further along), fall back to pending
+        const target = enrichedPreparing[0] ?? enrichedPending[0];
+        if (target) openRecipeSheet(target);
       } else if (showDrinkChecklist && !allDrinksChecked) {
         // Check off the next unchecked drink
         const next = recipeOrderDrinkList.find((d: { key: string }) => !checkedDrinks.has(d.key));
