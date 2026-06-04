@@ -10,7 +10,7 @@ import { PointsCupBadge, PointsEarnedCelebration } from "../points-cup";
 import { useCartFly } from "../cart-fly";
 import { SuperBusyOverlay } from "../super-busy-overlay";
 import { WelcomeTour, useWelcomeTour, TourButton } from "../welcome-tour";
-import { FeedbackWidget } from "../feedback-widget";
+
 import { DevModePanel } from "../dev-mode-panel";
 import { DevNotificationModal } from "../dev-notification-modal";
 import { useVisitorHeartbeat } from "@/hooks/use-visitor-heartbeat";
@@ -241,8 +241,6 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
       <WelcomeTour open={tour.open} onOpenChange={tour.setOpen} />
 
       <HelpBubble />
-
-      <FeedbackWidget />
 
       <ThemePicker
         rawPlatform={rawPlatform}

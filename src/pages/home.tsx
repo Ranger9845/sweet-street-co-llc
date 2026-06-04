@@ -773,11 +773,6 @@ export default function Home() {
                     <span className="absolute top-3.5 left-5 text-[9px] font-bold uppercase tracking-[0.22em] text-white/60">
                       {isLotusDrink(item as LotusDetectable) ? "Energy Drink" : isCoffeeDrink(item as LotusDetectable) ? "Coffee" : "Dirty Soda"}
                     </span>
-                    {isPopular && (
-                      <span className="absolute bottom-3.5 left-5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white bg-black/25 backdrop-blur-sm rounded-full px-2 py-0.5">
-                        🔥 Popular right now
-                      </span>
-                    )}
                     <Show when="signed-in">
                       <button
                         onClick={(e) => { e.stopPropagation(); toggle(item.id); }}
@@ -796,6 +791,11 @@ export default function Home() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <TempBadge temperature={(item as { temperature?: string }).temperature} />
                         {isLotusDrink(item as LotusDetectable) && <EnergyBadge />}
+                        {isPopular && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-orange-600 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">
+                            🔥 Popular
+                          </span>
+                        )}
                       </div>
                       <SizePriceBadge item={{ ...item, price: item.price ?? 0 }} isHappyHour={isHappyHour} hhDiscountType={hhDiscountType} hhDiscountValue={hhDiscountValue} />
                     </div>
