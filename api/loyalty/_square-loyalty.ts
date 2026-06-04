@@ -191,3 +191,28 @@ export async function accumulateLoyaltyPoints(
 
   return updatedData.loyalty_account ?? null;
 }
+
+/**
+ * Manually adjusts a loyalty account's balance by a fixed number of points.
+ * Use for website orders (which have no Square Order ID) and reward deductions.
+ * Points can be positive (award) or negative (deduct).
+ */
+export async function adjustLoyaltyPoints(
+  baseUrl: string,
+  token: string,
+  accountId: string,
+  points: number,
+  reason: string,
+): Promise<void> {
+  if (points === 0) return;
+  const { default: fetch } = await import("node-fetch");
+  await fetch(`${baseUrl}/v2/loyalty/events/adjust`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      idempotency_key: `adjust-${accountId}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      loyalty_account_id: accountId,
+      adjust_points: { points, reason },
+    }),
+  });
+}
