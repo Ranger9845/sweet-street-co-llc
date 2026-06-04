@@ -537,8 +537,8 @@ export default function Checkout() {
           return;
         }
         stashEarned(order.id, grandTotal, true);
-        clearCart();
         setLocation(`/order-status/${order.id}`);
+        clearCart();
       } catch (e) {
         alert(e instanceof Error ? e.message : "Failed to place order");
       } finally {
@@ -549,17 +549,21 @@ export default function Checkout() {
 
     if (paymentMethod === "card" && squareReady && squareCard) {
       setPaymentLoading(true);
+      let createdOrderId: number | null = null;
       try {
-        // Create the order first so we have an orderId for the payment
-        const order = await createOrderViaApi();
-
+        // 1. Tokenize FIRST — no order is created until we have a valid card token
         const result = await squareCard.tokenize();
         if (!result.token) {
-          const errMsg = result.errors?.[0]?.message ?? "Card tokenization failed";
+          const errMsg = result.errors?.[0]?.message ?? "Please check your card details and try again.";
           alert(errMsg);
           return;
         }
 
+        // 2. Create the order now that we know the card is valid
+        const order = await createOrderViaApi();
+        createdOrderId = order.id;
+
+        // 3. Charge the card
         const res = await fetch("/api/payments/process", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getDevHeaders() },
@@ -569,14 +573,20 @@ export default function Checkout() {
 
         if (!res.ok) {
           const { error } = await res.json().catch(() => ({ error: "Payment failed" }));
-          alert(error || "Payment failed");
+          // Cancel the orphaned order — card was declined
+          fetch(`/api/orders/${order.id}`, { method: "DELETE" }).catch(() => {});
+          alert(error || "Your card was declined. Please try a different card.");
           return;
         }
 
         stashEarned(order.id, grandTotal, true);
-        clearCart();
+        // Navigate BEFORE clearing the cart — clearing it first causes a "cart is empty"
+        // re-render that can race against / swallow the navigation.
         setLocation(`/order-status/${order.id}`);
+        clearCart();
       } catch (e) {
+        // If order was created but something else blew up, cancel it
+        if (createdOrderId) fetch(`/api/orders/${createdOrderId}`, { method: "DELETE" }).catch(() => {});
         alert(e instanceof Error ? e.message : "Payment failed. Please try again.");
       } finally {
         setPaymentLoading(false);
