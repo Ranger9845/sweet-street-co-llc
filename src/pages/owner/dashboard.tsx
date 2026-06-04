@@ -1641,6 +1641,31 @@ export default function Dashboard() {
     }
   };
 
+  // M key shortcut: open recipe sheet → check drinks → mark ready
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "m" && e.key !== "M") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+
+      if (!recipeOrder) {
+        // No sheet open — open it for the first preparing order
+        if (enrichedPreparing.length > 0) openRecipeSheet(enrichedPreparing[0]);
+      } else if (showDrinkChecklist && !allDrinksChecked) {
+        // Check off the next unchecked drink
+        const next = recipeOrderDrinkList.find((d: { key: string }) => !checkedDrinks.has(d.key));
+        if (next) toggleDrink(next.key);
+      } else if (!bumpPending && !markReadyBlocked) {
+        // All drinks checked (or no checklist) — mark ready and close
+        handleBump(recipeOrder.id, recipeOrder.customerName);
+        openRecipeSheet(null);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [recipeOrder, enrichedPreparing, showDrinkChecklist, allDrinksChecked, markReadyBlocked,
+      recipeOrderDrinkList, checkedDrinks, bumpPending, openRecipeSheet, toggleDrink, handleBump]);
+
   const initialLoading = statsLoading || pendingLoading || preparingLoading || readyLoading;
   if (initialLoading) {
     return (
