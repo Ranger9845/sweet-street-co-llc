@@ -205,6 +205,7 @@ export default function Checkout() {
   const [squareCard, setSquareCard] = useState<SquarePaymentForm | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "later">("card");
+  const [cardDeclined, setCardDeclined] = useState(false);
   const [googlePayReady, setGooglePayReady] = useState(false);
   const squareContainerRef = useRef<HTMLDivElement>(null);
   const googlePayContainerRef = useRef<HTMLDivElement>(null);
@@ -551,11 +552,13 @@ export default function Checkout() {
       setPaymentLoading(true);
       let createdOrderId: number | null = null;
       try {
-        // 1. Tokenize FIRST — no order is created until we have a valid card token
+        // Tokenize FIRST — so we never create an order if the card data is invalid
+        setCardDeclined(false);
         const result = await squareCard.tokenize();
         if (!result.token) {
           const errMsg = result.errors?.[0]?.message ?? "Please check your card details and try again.";
-          alert(errMsg);
+          setCardDeclined(true);
+          console.error("Tokenization failed:", errMsg);
           return;
         }
 
@@ -573,27 +576,33 @@ export default function Checkout() {
 
         if (!res.ok) {
           const { error } = await res.json().catch(() => ({ error: "Payment failed" }));
-          // Cancel the orphaned order — card was declined
-          fetch(`/api/orders/${order.id}`, { method: "DELETE" }).catch(() => {});
-          alert(error || "Your card was declined. Please try a different card.");
+          // Await the cancel so the request completes before we return
+          await fetch(`/api/orders/${order.id}`, { method: "DELETE" }).catch(() => {});
+          createdOrderId = null;
+          setCardDeclined(true);
+          console.error("Card declined:", error);
           return;
         }
 
+        createdOrderId = null; // payment succeeded, don't cancel in finally
+        setCardDeclined(false);
         stashEarned(order.id, grandTotal, true);
         // Navigate BEFORE clearing the cart — clearing it first causes a "cart is empty"
         // re-render that can race against / swallow the navigation.
         setLocation(`/order-status/${order.id}`);
         clearCart();
       } catch (e) {
-        // If order was created but something else blew up, cancel it
-        if (createdOrderId) fetch(`/api/orders/${createdOrderId}`, { method: "DELETE" }).catch(() => {});
         alert(e instanceof Error ? e.message : "Payment failed. Please try again.");
       } finally {
+        // Cancel any orphaned order (only runs if createdOrderId wasn't cleared above)
+        if (createdOrderId) {
+          await fetch(`/api/orders/${createdOrderId}`, { method: "DELETE" }).catch(() => {});
+        }
         setPaymentLoading(false);
       }
     } else {
       createOrder.mutate(orderPayload, {
-        onSuccess: (order) => {
+        onSuccess: (order: { id: number; totalAmount?: number | string | null }) => {
           stashEarned(order.id, Number(order.totalAmount ?? grandTotal), false);
           clearCart();
           setLocation(`/order-status/${order.id}`);
@@ -980,7 +989,7 @@ export default function Checkout() {
                       type="button"
                       variant={paymentMethod === "card" ? "default" : "outline"}
                       className="flex-1"
-                      onClick={() => setPaymentMethod("card")}
+                      onClick={() => { setPaymentMethod("card"); setCardDeclined(false); }}
                     >
                       <CreditCard className="h-4 w-4 mr-2" /> Pay by Card
                     </Button>
@@ -988,15 +997,37 @@ export default function Checkout() {
                       type="button"
                       variant={paymentMethod === "later" ? "default" : "outline"}
                       className="flex-1"
-                      onClick={() => setPaymentMethod("later")}
+                      onClick={() => { setPaymentMethod("later"); setCardDeclined(false); }}
                     >
                       Pay in Store
                     </Button>
                   </div>
                   {paymentMethod === "card" && (
                     <div className="space-y-2">
-                      <div id="square-card-container" ref={squareContainerRef} className="min-h-[100px] border border-border/50 rounded-lg p-3 bg-white" />
-                      {!squareReady && (
+                      <div className="relative">
+                        <div
+                          id="square-card-container"
+                          ref={squareContainerRef}
+                          className="min-h-[100px] border border-border/50 rounded-lg p-3 bg-white"
+                          onClick={() => setCardDeclined(false)}
+                        />
+                        <AnimatePresence>
+                          {cardDeclined && (
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className="absolute inset-0 rounded-lg bg-red-600/90 flex flex-col items-center justify-center gap-1 cursor-pointer"
+                              onClick={() => setCardDeclined(false)}
+                            >
+                              <XCircle className="h-10 w-10 text-white" />
+                              <span className="text-white font-bold text-lg tracking-wide">Declined</span>
+                              <span className="text-white/80 text-xs">Tap to try a different card</span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      {!squareReady && !cardDeclined && (
                         <p className="text-sm text-muted-foreground flex items-center gap-1">
                           <CupSpinner size={14} /> Loading card form...
                         </p>

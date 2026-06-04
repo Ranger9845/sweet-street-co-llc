@@ -6,6 +6,7 @@ import {
   searchLoyaltyAccount,
   createLoyaltyAccount,
   accumulateLoyaltyPoints,
+  getLoyaltyProgramId,
 } from "../loyalty/_square-loyalty";
 
 /**
@@ -133,10 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { default: fetch } = await import("node-fetch");
-    const baseUrl =
-      process.env.SQUARE_ENVIRONMENT === "production"
-        ? "https://connect.squareup.com"
-        : "https://connect.squareupsandbox.com";
+    const baseUrl = getSquareBaseUrl();
 
     const squareRes = await fetch(`${baseUrl}/v2/payments`, {
       method: "POST",
