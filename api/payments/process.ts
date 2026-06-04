@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { supabase, setCors, orderToClient, err } from "../_utils";
+import { supabase, setCors, orderToClient, err, sendOrderConfirmationEmail } from "../_utils";
 import {
   getSquareBaseUrl,
   normalizePhone,
@@ -106,6 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           deductLoyaltyPoints(String(orderData.customer_phone), Number(reward.points_cost));
         }
       }
+      sendOrderConfirmationEmail(orderData);
       return res.json(orderToClient(orderData));
     }
     return res.json({ success: true });
@@ -162,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data: updatedOrder, error: updateErr } = await sb
       .from("orders")
-      .update({ paid_at: new Date().toISOString() })
+      .update({ paid_at: new Date().toISOString(), status: "pending" })
       .eq("id", orderId)
       .select()
       .single();
@@ -193,6 +194,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         deductLoyaltyPoints(String(paidOrder.customer_phone), Number(reward.points_cost));
       }
     }
+    sendOrderConfirmationEmail(paidOrder);
 
     return res.json({ success: true, paymentId: squareData.payment?.id, order: orderToClient(paidOrder) });
   } catch (e: unknown) {

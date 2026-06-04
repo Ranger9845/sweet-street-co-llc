@@ -111,3 +111,42 @@ export function orderToClient(o: Record<string, unknown>) {
     items: o.items,
   };
 }
+
+export async function sendOrderConfirmationEmail(order: Record<string, unknown>): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.FROM_EMAIL || "orders@sweetstreetco.com";
+  if (!apiKey || !order.customer_email) return;
+
+  const items = (order.items ?? []) as Record<string, unknown>[];
+  const itemLines = items
+    .map(i => `<li>${i.quantity ?? 1}× ${i.menu_item_name ?? i.menuItemName ?? "Item"} (${i.size ?? ""})</li>`)
+    .join("");
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+      <h2 style="color:#c0392b">Sweet Street Co — Order Confirmed!</h2>
+      <p>Hi ${order.customer_name ?? "there"},</p>
+      <p>We've received your order <strong>#${order.id}</strong>. We'll get it ready as soon as possible!</p>
+      ${itemLines ? `<ul>${itemLines}</ul>` : ""}
+      <p><strong>Total: $${Number(order.total_amount ?? 0).toFixed(2)}</strong></p>
+      ${order.notes ? `<p><em>Notes: ${order.notes}</em></p>` : ""}
+      <hr/>
+      <p style="color:#888;font-size:12px">Sweet Street Co — Meeker, OK</p>
+    </div>`;
+
+  try {
+    const { default: fetch } = await import("node-fetch");
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [order.customer_email as string],
+        subject: `Order #${order.id} confirmed — Sweet Street Co`,
+        html,
+      }),
+    });
+  } catch {
+    // Email failure should never block the order response
+  }
+}

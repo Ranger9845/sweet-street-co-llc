@@ -508,12 +508,14 @@ export default function Checkout() {
     };
 
     // Helper: create order via API and return it
+    // Passing paymentMethod: "card" tells the server to create with status="payment_pending"
+    // so it never appears on the owner dashboard until the charge succeeds.
     const createOrderViaApi = async () => {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getDevHeaders() },
         credentials: "include",
-        body: JSON.stringify(orderPayload),
+        body: JSON.stringify({ ...orderPayload, paymentMethod: "card" }),
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({ error: "Order creation failed" }));
