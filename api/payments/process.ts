@@ -100,10 +100,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         awardLoyaltyPoints(String(orderData.customer_phone), String(orderId));
       }
       // Deduct reward points if a reward was redeemed
-      if (rewardId && orderData.customer_phone) {
-        const { data: reward } = await sb.from("rewards").select("points_cost").eq("id", rewardId).maybeSingle();
+      if (rewardId) {
+        const { data: reward } = await sb.from("rewards").select("points_cost, name").eq("id", rewardId).maybeSingle();
         if (reward?.points_cost) {
-          deductLoyaltyPoints(String(orderData.customer_phone), Number(reward.points_cost));
+          // Deduct from Supabase ledger (Clerk-based balance shown on website)
+          if (orderData.clerk_user_id) {
+            sb.from("points_ledger").insert({
+              clerk_user_id: orderData.clerk_user_id,
+              points: -Number(reward.points_cost),
+              type: "redeem",
+              description: `Redeemed: ${reward.name ?? "Reward"} (Order #${orderId})`,
+            }).then(() => {}).catch(() => {});
+          }
+          // Also deduct from Square loyalty if phone is linked
+          if (orderData.customer_phone) {
+            deductLoyaltyPoints(String(orderData.customer_phone), Number(reward.points_cost));
+          }
         }
       }
       sendOrderConfirmationEmail(orderData);
@@ -188,10 +200,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       awardLoyaltyPoints(String(paidOrder.customer_phone), String(orderId));
     }
     // Deduct reward points if a reward was redeemed
-    if (rewardId && paidOrder.customer_phone) {
-      const { data: reward } = await sb.from("rewards").select("points_cost").eq("id", rewardId).maybeSingle();
+    if (rewardId) {
+      const { data: reward } = await sb.from("rewards").select("points_cost, name").eq("id", rewardId).maybeSingle();
       if (reward?.points_cost) {
-        deductLoyaltyPoints(String(paidOrder.customer_phone), Number(reward.points_cost));
+        // Deduct from Supabase ledger (Clerk-based balance shown on website)
+        if (paidOrder.clerk_user_id) {
+          sb.from("points_ledger").insert({
+            clerk_user_id: paidOrder.clerk_user_id,
+            points: -Number(reward.points_cost),
+            type: "redeem",
+            description: `Redeemed: ${reward.name ?? "Reward"} (Order #${orderId})`,
+          }).then(() => {}).catch(() => {});
+        }
+        // Also deduct from Square loyalty if phone is linked
+        if (paidOrder.customer_phone) {
+          deductLoyaltyPoints(String(paidOrder.customer_phone), Number(reward.points_cost));
+        }
       }
     }
     sendOrderConfirmationEmail(paidOrder);
