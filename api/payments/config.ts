@@ -8,7 +8,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const applicationId = process.env.SQUARE_APPLICATION_ID ?? null;
   const locationId = process.env.SQUARE_LOCATION_ID ?? null;
-  const environment = process.env.SQUARE_ENVIRONMENT ?? "sandbox";
+  // Auto-detect: sandbox app IDs start with "sandbox-"; fall back to env var, default production
+  const environment =
+    applicationId?.startsWith("sandbox-")
+      ? "sandbox"
+      : (process.env.SQUARE_ENVIRONMENT ?? "production");
 
   return res.json({
     configured: !!(applicationId && locationId),

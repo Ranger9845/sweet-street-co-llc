@@ -311,6 +311,7 @@ export default function Checkout() {
       );
       paymentsRef.current = payments;
       const card = await withTimeout(payments.card(), 10000);
+      if (card.attach) await card.attach("#square-card-container");
       setSquareCard(card);
       setSquareReady(true);
 
@@ -340,11 +341,13 @@ export default function Checkout() {
     }
   }, [squareConfig, initSquare]);
 
+  // Re-attach the card form whenever the user switches back to "card" mode —
+  // toggling to "Pay in Store" unmounts the container div, so we must re-attach.
   useEffect(() => {
-    if (squareCard && squareContainerRef.current) {
-      squareCard.attach?.("#square-card-container");
+    if (paymentMethod === "card" && squareCard) {
+      squareCard.attach?.("#square-card-container")?.catch(() => {});
     }
-  }, [squareCard]);
+  }, [paymentMethod, squareCard]);
 
   useEffect(() => {
     if (googlePayReady && googlePayRef.current && googlePayContainerRef.current) {
