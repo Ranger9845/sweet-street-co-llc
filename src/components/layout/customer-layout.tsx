@@ -18,6 +18,7 @@ import { usePlatform } from "@/hooks/use-platform";
 import { ThemePicker } from "@/components/theme-picker";
 import { PhoneCaptureModal } from "@/components/phone-capture-modal";
 import { HelpBubble } from "@/components/help-bubble";
+import { FeedbackWidget } from "../feedback-widget";
 
 type Reward = {
   id: number;
@@ -241,6 +242,8 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
       <WelcomeTour open={tour.open} onOpenChange={tour.setOpen} />
 
       <HelpBubble />
+
+      <FeedbackWidget hideTrigger />
 
       <ThemePicker
         rawPlatform={rawPlatform}

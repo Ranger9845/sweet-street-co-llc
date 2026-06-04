@@ -42,7 +42,7 @@ function formatOrderDate(iso: string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export function FeedbackWidget() {
+export function FeedbackWidget({ hideTrigger = false }: { hideTrigger?: boolean }) {
   const { user } = useUser();
   const [phase, setPhase] = useState<Phase>("idle");
   const [isOwnerMode, setIsOwnerMode] = useState(false);
@@ -186,7 +186,7 @@ export function FeedbackWidget() {
   return (
     <>
       <AnimatePresence>
-        {phase === "idle" && (
+        {phase === "idle" && !hideTrigger && (
           <motion.button
             key="trigger"
             initial={{ scale: 0, opacity: 0 }}
