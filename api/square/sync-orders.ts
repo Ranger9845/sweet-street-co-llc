@@ -80,12 +80,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
+      const discountCents = o.total_discount_money?.amount ?? 0;
+      const discountName = (o.discounts as any[])?.[0]?.name ?? null;
+
       return {
         customer_name: "Square POS",
         status: "pending",
         source: "square-pos",
         square_order_id: o.id as string,
         total_amount: (o.total_money?.amount ?? 0) / 100,
+        discount_amount: discountCents / 100,
+        discount_code: discountName,
         paid_at: new Date().toISOString(),
         items: lineItems,
         created_at: o.created_at as string,
