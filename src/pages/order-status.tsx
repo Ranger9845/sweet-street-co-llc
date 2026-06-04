@@ -1,5 +1,5 @@
 import { CustomerLayout } from "@/components/layout/customer-layout";
-import { useGetOrder, getGetOrderQueryKey, useGetSettings } from "@workspace/api-client-react";
+import { useGetOrder, getGetOrderQueryKey, useGetSettings, useGetOrderStats } from "@workspace/api-client-react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -118,6 +118,7 @@ export default function OrderStatus() {
     query: { enabled: !!orderId, queryKey: getGetOrderQueryKey(orderId), refetchInterval: 5000 }
   });
   const { data: settings } = useGetSettings();
+  const { data: queueStats } = useGetOrderStats({ query: { refetchInterval: 30000 } });
 
   const [celebration, setCelebration] = useState<{
     earned: number; prevBalance: number; rewards: Reward[];
@@ -205,6 +206,9 @@ export default function OrderStatus() {
   const isSquare = order.source === "square-online";
   const isPos = order.source === "pos";
   const isWaiting = order.status === "pending" || order.status === "preparing";
+  const queueDepth = (queueStats?.pendingCount ?? 0) + (queueStats?.preparingCount ?? 0);
+  const estMins = Math.max(2, Math.ceil(queueDepth * 3));
+  const waitLabel = estMins <= 5 ? "~5 min" : estMins <= 10 ? "~10 min" : estMins <= 15 ? "~15 min" : "~20+ min";
   const isCompleted = order.status === "completed" || order.status === "ready";
   const statusLabel = order.status === "pending" ? "Received" : order.status === "preparing" ? "Preparing" : order.status === "ready" ? "Ready for Pickup" : order.status === "completed" ? "Completed" : "Unknown";
   const readyMessage = settings?.readyMessage?.replace("{name}", order.customerName ?? "") ?? `${order.customerName ?? ""}, your order is ready for pickup!`;
@@ -296,7 +300,14 @@ export default function OrderStatus() {
                   <Bell className="h-4 w-4" />
                   <span className="text-sm font-semibold">We'll let you know when it's ready</span>
                 </div>
-                <p className="text-xs text-slate-400">Keep this page open for a sound alert + email notification.</p>
+                <div className="flex items-center justify-center gap-3">
+                  <p className="text-xs text-slate-400">Keep this page open for a sound alert + email notification.</p>
+                  {isWaiting && queueStats && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5 shrink-0">
+                      <Clock className="h-3 w-3" /> {waitLabel}
+                    </span>
+                  )}
+                </div>
                 {notifPermission === "default" && (
                   <Button variant="outline" size="sm" onClick={requestNotifPermission} className="h-8 text-xs mt-1">
                     <Bell className="h-3 w-3 mr-1" /> Enable browser alerts

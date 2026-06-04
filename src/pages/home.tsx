@@ -334,6 +334,13 @@ function SizePriceBadge({ item, isHappyHour = false, hhDiscountType = "percent",
 export default function Home() {
   const { data: menuItems, isLoading } = useListMenuItems();
   const { data: settings } = useGetSettings({ query: { refetchInterval: 60000 } });
+  const [popularIds, setPopularIds] = useState<number[]>([]);
+  useEffect(() => {
+    fetch("/api/orders/popular-items")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { popular: number[] } | null) => { if (d?.popular) setPopularIds(d.popular); })
+      .catch(() => {});
+  }, []);
   const isHappyHour = !!(settings as any)?.isHappyHour;
   const minsUntilHappyHourEnd = (settings as any)?.minutesUntilHappyHourEnd as number | null ?? null;
   const hhDiscountType: string = (settings as any)?.happyHourDiscountType ?? "percent";
@@ -746,6 +753,7 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {availableItems.map((item) => {
               const isFav = favorites.some((f) => f.menuItemId === item.id);
+              const isPopular = popularIds.includes(item.id);
               return (
                 <ScrollStackCard
                   key={`${item.id}-${animCfgKey}`}
@@ -765,6 +773,11 @@ export default function Home() {
                     <span className="absolute top-3.5 left-5 text-[9px] font-bold uppercase tracking-[0.22em] text-white/60">
                       {isLotusDrink(item as LotusDetectable) ? "Energy Drink" : isCoffeeDrink(item as LotusDetectable) ? "Coffee" : "Dirty Soda"}
                     </span>
+                    {isPopular && (
+                      <span className="absolute bottom-3.5 left-5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.18em] text-white bg-black/25 backdrop-blur-sm rounded-full px-2 py-0.5">
+                        🔥 Popular right now
+                      </span>
+                    )}
                     <Show when="signed-in">
                       <button
                         onClick={(e) => { e.stopPropagation(); toggle(item.id); }}

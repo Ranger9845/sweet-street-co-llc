@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // API handlers
 import ordersHandler from "./api/orders/index.js";
 import orderStatsHandler from "./api/orders/stats.js";
+import orderPopularItemsHandler from "./api/orders/popular-items.js";
 import autoBumpHandler from "./api/orders/sweet-street-buddy/auto-bump.js";
 import dailySpecialHandler from "./api/orders/sweet-street-buddy/daily-special.js";
 import lowPerformerAlertsHandler from "./api/orders/sweet-street-buddy/low-performer-alerts.js";
@@ -79,6 +80,7 @@ function adapt(
 
 // Orders — specific paths before dynamic :id
 app.all("/api/orders/stats", adapt(orderStatsHandler));
+app.all("/api/orders/popular-items", adapt(orderPopularItemsHandler));
 app.all("/api/orders/sweet-street-buddy/auto-bump", adapt(autoBumpHandler));
 app.all("/api/orders/sweet-street-buddy/daily-special", adapt(dailySpecialHandler));
 app.all("/api/orders/sweet-street-buddy/low-performer-alerts", adapt(lowPerformerAlertsHandler));
