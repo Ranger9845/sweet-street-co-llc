@@ -16,7 +16,7 @@ import { usePlatform, type Platform } from "@/hooks/use-platform";
 
 const DEV_KEY = "ranger";
 const STORAGE_KEY = "ss_dev_mode";
-const DEV_EMAIL = "ldfarris2007@gmail.com";
+const DEV_USER_ID = "user_3EVPyNPz6vSWHsxoM6z4z6dmlny";
 
 export function getDevKey(): string | null {
   try {
@@ -89,13 +89,12 @@ export function DevModePanel() {
 
   // Auto-activate for the dev account
   useEffect(() => {
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (!email || email !== DEV_EMAIL) return;
+    if (!user?.id || user.id !== DEV_USER_ID) return;
     if (isDevMode()) return;
     sessionStorage.setItem(STORAGE_KEY, "1");
     setExtraHeaders({ "x-dev-key": DEV_KEY });
     setActive(true);
-  }, [user?.primaryEmailAddress?.emailAddress]);
+  }, [user?.id]);
 
   // Sync extra headers on mount
   useEffect(() => {
