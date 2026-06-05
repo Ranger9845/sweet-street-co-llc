@@ -1,17 +1,22 @@
 import { useState, useCallback, useEffect } from "react";
+import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Beaker, X, Megaphone, ChevronUp, Loader2, CheckCircle2, Palette } from "lucide-react";
+import {
+  Beaker, X, Megaphone, ChevronUp, Loader2, CheckCircle2, Palette,
+  Store, Activity, User2, Copy, RefreshCw, Trash2, Check,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { setExtraHeaders } from "@workspace/api-client-react";
 import { usePlatform, type Platform } from "@/hooks/use-platform";
 
 const DEV_KEY = "ranger";
 const STORAGE_KEY = "ss_dev_mode";
+const DEV_EMAIL = "ldfarris2007@gmail.com";
 
 export function getDevKey(): string | null {
   try {
@@ -54,7 +59,16 @@ const THEME_OPTIONS: { label: string; value: Platform | "auto"; emoji: string; d
   { label: "Android", value: "android", emoji: "🤖", desc: "Material You"  },
 ];
 
+type DevStatus = {
+  shopOpen: boolean;
+  shopName: string;
+  activeOrders: number;
+  serverTime: string;
+} | null;
+
 export function DevModePanel() {
+  const { user } = useUser();
+
   const [clickCount, setClickCount] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pw, setPw] = useState("");
@@ -68,6 +82,21 @@ export function DevModePanel() {
   const [fields, setFields] = useState<AnnouncementFields>(defaults);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
+  // Dev status (shop open state, active orders)
+  const [devStatus, setDevStatus] = useState<DevStatus>(null);
+  const [shopToggling, setShopToggling] = useState(false);
+  const [copied, setCopied] = useState<"email" | "id" | null>(null);
+
+  // Auto-activate for the dev account
+  useEffect(() => {
+    const email = user?.primaryEmailAddress?.emailAddress;
+    if (!email || email !== DEV_EMAIL) return;
+    if (isDevMode()) return;
+    sessionStorage.setItem(STORAGE_KEY, "1");
+    setExtraHeaders({ "x-dev-key": DEV_KEY });
+    setActive(true);
+  }, [user?.primaryEmailAddress?.emailAddress]);
+
   // Sync extra headers on mount
   useEffect(() => {
     if (isDevMode()) {
@@ -75,7 +104,14 @@ export function DevModePanel() {
     }
   }, []);
 
-  // Load current announcement settings when dev mode activates or panel opens
+  // Load dev status when panel opens
+  const loadStatus = useCallback(async () => {
+    try {
+      const r = await fetch("/api/dev/status", { headers: { "x-dev-key": DEV_KEY } });
+      if (r.ok) setDevStatus(await r.json());
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (!active) return;
     fetch("/api/settings")
@@ -93,6 +129,10 @@ export function DevModePanel() {
       })
       .catch(() => {});
   }, [active]);
+
+  useEffect(() => {
+    if (panelOpen) loadStatus();
+  }, [panelOpen, loadStatus]);
 
   const handleSecretClick = useCallback(() => {
     setClickCount((c) => {
@@ -126,6 +166,34 @@ export function DevModePanel() {
     setPanelOpen(false);
   };
 
+  const handleShopToggle = async (open: boolean) => {
+    setShopToggling(true);
+    try {
+      const r = await fetch("/api/dev/shop-toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-dev-key": DEV_KEY },
+        body: JSON.stringify({ isOpen: open }),
+      });
+      if (r.ok) setDevStatus((s) => s ? { ...s, shopOpen: open } : s);
+    } catch {}
+    setShopToggling(false);
+  };
+
+  const handleClearNotifs = () => {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith("ss_notif_")) keysToRemove.push(k);
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  };
+
+  const handleCopy = (type: "email" | "id", value: string) => {
+    navigator.clipboard.writeText(value).catch(() => {});
+    setCopied(type);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
   const handleSaveAnnouncement = async () => {
     setSaveStatus("saving");
     try {
@@ -145,13 +213,23 @@ export function DevModePanel() {
   const set = <K extends keyof AnnouncementFields>(k: K, v: AnnouncementFields[K]) =>
     setFields((f) => ({ ...f, [k]: v }));
 
-  // Which theme button is currently active
   const activeThemeValue: Platform | "auto" =
     preference === "force-ios"      ? "ios" :
     preference === "force-android"  ? "android" :
     (preference === null || preference === "platform" || preference === "default")
       ? "auto"
       : "auto";
+
+  const userEmail = user?.primaryEmailAddress?.emailAddress ?? null;
+  const userId = user?.id ?? null;
+
+  const fmtServerTime = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    } catch {
+      return iso;
+    }
+  };
 
   return (
     <>
@@ -177,9 +255,10 @@ export function DevModePanel() {
                   exit={{ opacity: 0, y: 12, scale: 0.97 }}
                   transition={{ type: "spring", stiffness: 380, damping: 28 }}
                   className="fixed bottom-16 left-4 z-50 w-80 rounded-2xl shadow-2xl bg-white border border-violet-200 overflow-hidden"
+                  style={{ maxHeight: "calc(100dvh - 80px)", overflowY: "auto" }}
                 >
                   {/* Header */}
-                  <div className="flex items-center justify-between px-4 py-3 bg-violet-600 text-white">
+                  <div className="flex items-center justify-between px-4 py-3 bg-violet-600 text-white sticky top-0 z-10">
                     <div className="flex items-center gap-2 text-sm font-semibold">
                       <Beaker className="h-3.5 w-3.5" />
                       Developer Mode
@@ -193,15 +272,103 @@ export function DevModePanel() {
                   </div>
 
                   <div className="p-4 space-y-5">
-                    {/* Shop status row */}
+                    {/* Session row */}
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Shop is forced open for testing</span>
+                      <span className="text-xs text-muted-foreground">Shop forced open for testing</span>
                       <button
                         onClick={handleDeactivate}
                         className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
                       >
                         Exit dev mode
                       </button>
+                    </div>
+
+                    <div className="border-t border-border" />
+
+                    {/* ── Identity ───────────────────────────────────────── */}
+                    {(userEmail || userId) && (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <User2 className="h-3.5 w-3.5 text-violet-500" />
+                            <span className="text-sm font-semibold text-foreground">Identity</span>
+                          </div>
+
+                          {userEmail && (
+                            <div className="flex items-center justify-between gap-2 bg-muted/50 rounded-lg px-3 py-1.5">
+                              <span className="text-xs text-muted-foreground truncate">{userEmail}</span>
+                              <button
+                                onClick={() => handleCopy("email", userEmail)}
+                                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                                title="Copy email"
+                              >
+                                {copied === "email" ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                              </button>
+                            </div>
+                          )}
+
+                          {userId && (
+                            <div className="flex items-center justify-between gap-2 bg-muted/50 rounded-lg px-3 py-1.5">
+                              <span className="text-xs font-mono text-muted-foreground truncate">{userId}</span>
+                              <button
+                                onClick={() => handleCopy("id", userId)}
+                                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                                title="Copy Clerk user ID"
+                              >
+                                {copied === "id" ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="border-t border-border" />
+                      </>
+                    )}
+
+                    {/* ── Shop Control ───────────────────────────────────── */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Store className="h-3.5 w-3.5 text-violet-500" />
+                          <span className="text-sm font-semibold text-foreground">Shop Control</span>
+                        </div>
+                        <button
+                          onClick={loadStatus}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="Refresh status"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                        </button>
+                      </div>
+
+                      {devStatus ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2">
+                            <div>
+                              <p className="text-xs font-semibold text-foreground">
+                                {devStatus.shopOpen ? "🟢 Shop is open" : "🔴 Shop is closed"}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {devStatus.activeOrders} active order{devStatus.activeOrders !== 1 ? "s" : ""} · {fmtServerTime(devStatus.serverTime)}
+                              </p>
+                            </div>
+                            <Switch
+                              checked={devStatus.shopOpen}
+                              onCheckedChange={handleShopToggle}
+                              disabled={shopToggling}
+                              className="scale-90"
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground leading-relaxed">
+                            Toggling this writes directly to the database — customers will see the change immediately.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Loading…
+                        </div>
+                      )}
                     </div>
 
                     <div className="border-t border-border" />
@@ -244,15 +411,43 @@ export function DevModePanel() {
                       </div>
 
                       <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        Detected device: <span className="font-medium">{rawPlatform}</span>.
-                        Active theme: <span className="font-medium">{platform}</span>.
-                        Override applies instantly — no reload needed.
+                        Detected: <span className="font-medium">{rawPlatform}</span> · Active: <span className="font-medium">{platform}</span>
                       </p>
                     </div>
 
                     <div className="border-t border-border" />
 
-                    {/* Dev Announcement section */}
+                    {/* ── Quick Actions ─────────────────────────────────── */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-3.5 w-3.5 text-violet-500" />
+                        <span className="text-sm font-semibold text-foreground">Quick Actions</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={handleClearNotifs}
+                          className="flex items-center gap-1.5 justify-center text-xs font-medium border border-border rounded-lg px-2 py-2 hover:bg-muted/50 transition-colors text-foreground/70"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Clear notifs
+                        </button>
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="flex items-center gap-1.5 justify-center text-xs font-medium border border-border rounded-lg px-2 py-2 hover:bg-muted/50 transition-colors text-foreground/70"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Reload page
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        "Clear notifs" resets how many times each announcement has shown for this browser.
+                      </p>
+                    </div>
+
+                    <div className="border-t border-border" />
+
+                    {/* ── Dev Announcement ─────────────────────────────── */}
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Megaphone className="h-3.5 w-3.5 text-violet-500" />

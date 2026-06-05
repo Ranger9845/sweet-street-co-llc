@@ -57,6 +57,8 @@ import inventoryReportHandler from "./api/inventory/report.js";
 import giftCardsPurchaseHandler from "./api/gift-cards/purchase.js";
 import giftCardsBalanceHandler from "./api/gift-cards/balance.js";
 import giftCardsRedeemHandler from "./api/gift-cards/redeem.js";
+import devStatusHandler from "./api/dev/status.js";
+import devShopToggleHandler from "./api/dev/shop-toggle.js";
 
 const app = express();
 app.use(express.json());
@@ -162,6 +164,10 @@ app.all("/api/owner/allowed-emails", adapt(ownerAllowedEmailsHandler));
 app.all("/api/auth/verify-owner", adapt(authVerifyOwnerHandler));
 app.all("/api/send-fix-email", adapt(sendFixEmailHandler));
 app.all("/api/user/profile", adapt(userProfileHandler));
+
+// Dev tools
+app.all("/api/dev/status", adapt(devStatusHandler));
+app.all("/api/dev/shop-toggle", adapt(devShopToggleHandler));
 
 // SSE endpoint — pushes a heartbeat every 15s so the order board
 // invalidates its queries and stays live without polling overhead.
