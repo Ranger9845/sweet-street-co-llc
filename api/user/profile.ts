@@ -1,5 +1,20 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { supabase, setCors, err } from "../_utils";
+import { getSquareBaseUrl, normalizePhone, searchLoyaltyAccount, createLoyaltyAccount } from "../loyalty/_square-loyalty";
+
+async function ensureSquareLoyaltyAccount(phone: string): Promise<void> {
+  const token = process.env.SQUARE_ACCESS_TOKEN;
+  if (!token) return;
+  const normalized = normalizePhone(phone);
+  if (!normalized) return;
+  try {
+    const baseUrl = getSquareBaseUrl();
+    const existing = await searchLoyaltyAccount(baseUrl, token, normalized);
+    if (!existing) await createLoyaltyAccount(baseUrl, token, normalized);
+  } catch (e) {
+    console.error("[user/profile] Square loyalty account creation failed:", e instanceof Error ? e.message : e);
+  }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
@@ -36,6 +51,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
 
     if (error) return err(res, 500, error.message);
+
+    // Create Square loyalty account in the background so the customer
+    // starts earning points immediately on their first order.
+    ensureSquareLoyaltyAccount(phoneNumber);
+
     return res.json({ ok: true });
   }
 
