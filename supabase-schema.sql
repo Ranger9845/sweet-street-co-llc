@@ -163,6 +163,60 @@ CREATE TABLE IF NOT EXISTS live_carts (
   updated_at    timestamptz DEFAULT now()
 );
 
+-- ── user_profiles ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_profiles (
+  clerk_user_id text PRIMARY KEY,
+  phone_number  text,
+  created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now()
+);
+
+-- ── user_seen_points ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_seen_points (
+  clerk_user_id text PRIMARY KEY,
+  seen_at       timestamptz DEFAULT now()
+);
+
+-- ── inventory_receives ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS inventory_receives (
+  id             bigserial PRIMARY KEY,
+  variation_id   text        NOT NULL,
+  item_name      text,
+  variation_name text,
+  quantity       numeric     NOT NULL DEFAULT 0,
+  unit_cost      numeric     NOT NULL DEFAULT 0,
+  notes          text,
+  received_at    timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS inventory_receives_variation_idx ON inventory_receives (variation_id);
+CREATE INDEX IF NOT EXISTS inventory_receives_received_at_idx ON inventory_receives (received_at DESC);
+
+-- ── inventory_costs ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS inventory_costs (
+  variation_id   text PRIMARY KEY,
+  item_name      text,
+  variation_name text,
+  unit_cost      numeric     NOT NULL DEFAULT 0,
+  updated_at     timestamptz DEFAULT now()
+);
+
+-- ── gift_cards ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS gift_cards (
+  id                  SERIAL PRIMARY KEY,
+  square_gift_card_id text        NOT NULL,
+  gan                 text        NOT NULL UNIQUE,
+  amount_cents        integer     NOT NULL,
+  recipient_name      text,
+  recipient_email     text        NOT NULL,
+  buyer_name          text,
+  buyer_email         text        NOT NULL,
+  message             text,
+  clerk_user_id       text,
+  square_payment_id   text,
+  created_at          timestamptz DEFAULT now()
+);
+
 -- ============================================================
 -- Done! All tables created.
 -- ============================================================
