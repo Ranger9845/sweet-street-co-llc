@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts && npm run server:build",
+    "build": "vite build --config vite.config.ts && ([ \"$VERCEL\" != \"1\" ] && npm run server:build || true)",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate:supabase": "node scripts/migrate-replit-to-supabase.js",
