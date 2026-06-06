@@ -115,7 +115,8 @@ export default function OwnerLogin() {
         <p className="text-base font-medium text-muted-foreground">Owner Portal Login</p>
       </div>
       <SignIn
-        routing="hash"
+        routing="path"
+        path="/owner/login"
         forceRedirectUrl="/owner/login"
         appearance={{
           elements: {
