@@ -26,7 +26,7 @@ function wrap(x: number): number {
   return ((x % 360) + 360) % 360;
 }
 
-function applyColorVars(cfg: ColorCfg): void {
+export function applyColorVars(cfg: ColorCfg): void {
   const r = document.documentElement;
   const h = cfg.primaryHue;
   const ah = cfg.androidHue;

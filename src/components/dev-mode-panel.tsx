@@ -13,6 +13,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { setExtraHeaders } from "@workspace/api-client-react";
 import { usePlatform, type Platform } from "@/hooks/use-platform";
+import { applyColorVars, COLOR_DEFAULTS, SS_COLOR_KEY } from "@/hooks/use-color-overrides";
+
+const DEV_COLORS = { primaryHue: 270, androidHue: 280, iosCardOpacity: 0.28 };
 
 const DEV_KEY = "ranger";
 const STORAGE_KEY = "ss_dev_mode";
@@ -87,13 +90,16 @@ export function DevModePanel() {
   const [shopToggling, setShopToggling] = useState(false);
   const [copied, setCopied] = useState<"email" | "id" | null>(null);
 
-  // Auto-activate for the dev account
+  // Auto-activate for the dev account + apply purple theme
   useEffect(() => {
     if (!user?.id || user.id !== DEV_USER_ID) return;
-    if (isDevMode()) return;
-    sessionStorage.setItem(STORAGE_KEY, "1");
-    setExtraHeaders({ "x-dev-key": DEV_KEY });
-    setActive(true);
+    if (!isDevMode()) {
+      sessionStorage.setItem(STORAGE_KEY, "1");
+      setExtraHeaders({ "x-dev-key": DEV_KEY });
+      setActive(true);
+    }
+    localStorage.setItem(SS_COLOR_KEY, JSON.stringify(DEV_COLORS));
+    applyColorVars(DEV_COLORS);
   }, [user?.id]);
 
   // Sync extra headers on mount
@@ -163,6 +169,8 @@ export function DevModePanel() {
     setExtraHeaders({});
     setActive(false);
     setPanelOpen(false);
+    localStorage.removeItem(SS_COLOR_KEY);
+    applyColorVars(COLOR_DEFAULTS);
   };
 
   const handleShopToggle = async (open: boolean) => {
