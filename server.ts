@@ -171,6 +171,7 @@ app.all("/api/dev/shop-toggle", adapt(devShopToggleHandler));
 
 // SSE endpoint — pushes a heartbeat every 15s so the order board
 // invalidates its queries and stays live without polling overhead.
+// Max lifetime is 5 minutes; the client reconnects automatically.
 app.get("/api/events/orders", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -179,7 +180,8 @@ app.get("/api/events/orders", (req, res) => {
   res.flushHeaders();
   res.write("data: connected\n\n");
   const timer = setInterval(() => res.write("data: ping\n\n"), 15000);
-  req.on("close", () => clearInterval(timer));
+  const maxAge = setTimeout(() => { clearInterval(timer); res.end(); }, 5 * 60 * 1000);
+  req.on("close", () => { clearInterval(timer); clearTimeout(maxAge); });
 });
 
 // Health check

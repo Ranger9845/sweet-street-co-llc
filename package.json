@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts",
+    "build": "vite build --config vite.config.ts && npm run server:build",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate:supabase": "node scripts/migrate-replit-to-supabase.js",
-    "server": "tsx server.ts",
+    "server": "node dist/server.js",
+    "server:build": "esbuild server.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.js",
     "server:dev": "tsx watch server.ts"
   },
   "devDependencies": {
