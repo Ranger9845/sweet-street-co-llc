@@ -134,7 +134,7 @@ function Router() {
       <Route path="/gift-card" component={GiftCard} />
 
       {/* Owner routes */}
-      <Route path="/owner/login/*?" component={OwnerLogin} />
+      <Route path="/owner/login" component={OwnerLogin} />
       <Route path="/owner/orders/:id">{() => <OwnerRoute component={OrderDetail} />}</Route>
       <Route path="/owner/orders">{() => <OwnerRoute component={PastOrders} />}</Route>
       <Route path="/owner/menu">{() => <OwnerRoute component={MenuManagement} />}</Route>
