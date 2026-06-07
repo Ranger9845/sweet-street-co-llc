@@ -3,10 +3,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Terminal, X, ChevronUp, Clock, GitBranch, Send, Loader2, CheckCircle2,
   Play, Square, Trash2, ExternalLink, AlertCircle, Wrench, Database,
-  Server, Cloud, Bug, AlertTriangle, Monitor, Wifi, WifiOff,
+  Server, Cloud, Bug, AlertTriangle, Monitor, Wifi, WifiOff, Palette,
+  Megaphone, Unlock, Copy, RefreshCw, Gauge, Cpu,
 } from "lucide-react";
 import { useUser } from "@clerk/react";
 import { getConsoleLogs } from "@/lib/console-capture";
+import { useAutoDevMode } from "@/components/dev-mode-panel";
+import { usePlatform, type Platform } from "@/hooks/use-platform";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 const PANEL_BG = "linear-gradient(160deg, #1a0b2e 0%, #2d1248 45%, #3b1454 100%)";
 const ACCENT_GRADIENT = "linear-gradient(90deg, #c026d3, #a855f7, #ec4899)";
@@ -39,11 +47,15 @@ const LOG_COLORS: Record<LogEntry["level"], string> = {
   error: "#fb7185",
 };
 
-type Tab = "logs" | "clock" | "report" | "tools";
+type Tab = "logs" | "clock" | "report" | "site" | "tools";
 
 export function DevConsole() {
   const { user } = useUser();
   const email = user?.primaryEmailAddress?.emailAddress ?? "";
+
+  // Silently force the shop "open" + attach dev headers — replaces the old
+  // password-gated "DEV MODE" floating button now that the gate is this account.
+  useAutoDevMode(!!email);
 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("logs");
@@ -170,6 +182,7 @@ export function DevConsole() {
                 { id: "logs", label: "Logs", icon: Terminal },
                 { id: "clock", label: "Clock", icon: Clock },
                 { id: "report", label: "Report", icon: GitBranch },
+                { id: "site", label: "Site", icon: Palette },
                 { id: "tools", label: "Tools", icon: Wrench },
               ] as { id: Tab; label: string; icon: typeof Terminal }[]).map(({ id, label, icon: Icon }) => (
                 <button
@@ -213,6 +226,7 @@ export function DevConsole() {
                   onReset={() => { setReportStatus("idle"); setIssueUrl(null); }}
                 />
               )}
+              {tab === "site" && <SiteTab />}
               {tab === "tools" && <ToolsTab logs={logs} />}
             </div>
           </motion.div>
@@ -436,6 +450,203 @@ function ReportTab({
   );
 }
 
+// ─── Site tab — shop override, theme simulator, dev announcement ───────────
+const THEME_OPTIONS: { label: string; value: Platform | "auto"; emoji: string; desc: string }[] = [
+  { label: "Auto",    value: "auto",    emoji: "🌐", desc: "Detect device" },
+  { label: "iOS",     value: "ios",     emoji: "🍎", desc: "Frosted glass" },
+  { label: "Android", value: "android", emoji: "🤖", desc: "Material You"  },
+];
+
+type AnnouncementFields = {
+  devNotificationEnabled: boolean;
+  devNotificationTitle: string;
+  devNotificationBody: string;
+  devNotificationMaxShows: number;
+  devNotificationCtaLabel: string;
+  devNotificationCtaUrl: string;
+};
+
+const announcementDefaults: AnnouncementFields = {
+  devNotificationEnabled: false,
+  devNotificationTitle: "",
+  devNotificationBody: "",
+  devNotificationMaxShows: 1,
+  devNotificationCtaLabel: "",
+  devNotificationCtaUrl: "",
+};
+
+function SiteTab() {
+  const { platform, rawPlatform, preference, forcePlatform } = usePlatform();
+
+  const activeThemeValue: Platform | "auto" =
+    preference === "force-ios" ? "ios" : preference === "force-android" ? "android" : "auto";
+
+  const [fields, setFields] = useState<AnnouncementFields>(announcementDefaults);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setFields({
+          devNotificationEnabled: data.devNotificationEnabled ?? false,
+          devNotificationTitle: data.devNotificationTitle ?? "",
+          devNotificationBody: data.devNotificationBody ?? "",
+          devNotificationMaxShows: data.devNotificationMaxShows ?? 1,
+          devNotificationCtaLabel: data.devNotificationCtaLabel ?? "",
+          devNotificationCtaUrl: data.devNotificationCtaUrl ?? "",
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const set = <K extends keyof AnnouncementFields>(k: K, v: AnnouncementFields[K]) =>
+    setFields((f) => ({ ...f, [k]: v }));
+
+  const saveAnnouncement = async () => {
+    setSaveStatus("saving");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    } catch {
+      setSaveStatus("idle");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Shop override status */}
+      <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-400/20 px-3 py-2">
+        <Unlock className="h-3.5 w-3.5 text-emerald-300 flex-shrink-0" />
+        <span className="text-[11px] text-emerald-200/90">
+          Shop is force-opened for testing — your account bypasses closed/Sunday hours automatically.
+        </span>
+      </div>
+
+      {/* Theme simulator */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Palette className="h-3.5 w-3.5 text-fuchsia-300" />
+          <span className="text-xs font-bold text-violet-100">Theme simulator</span>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {THEME_OPTIONS.map(({ label, value, emoji, desc }) => {
+            const isActive = activeThemeValue === value;
+            return (
+              <button
+                key={value}
+                onClick={() => forcePlatform(value)}
+                className={[
+                  "relative flex flex-col items-center gap-0.5 rounded-xl border py-2 px-1 text-center transition-all duration-150",
+                  isActive
+                    ? "border-fuchsia-400/60 bg-fuchsia-500/15"
+                    : "border-fuchsia-500/15 bg-black/20 hover:border-fuchsia-400/30",
+                ].join(" ")}
+              >
+                <span className="text-base leading-none">{emoji}</span>
+                <span className={`text-[10px] font-semibold leading-tight mt-0.5 ${isActive ? "text-fuchsia-200" : "text-violet-200/80"}`}>
+                  {label}
+                </span>
+                <span className="text-[9px] text-violet-300/50 leading-tight">{desc}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-violet-300/50 leading-relaxed">
+          Detected: <span className="font-medium text-violet-200/80">{rawPlatform}</span> · Active: <span className="font-medium text-violet-200/80">{platform}</span> · applies instantly, no reload.
+        </p>
+      </div>
+
+      <div className="border-t border-fuchsia-500/15" />
+
+      {/* Dev announcement */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Megaphone className="h-3.5 w-3.5 text-fuchsia-300" />
+          <span className="text-xs font-bold text-violet-100">Customer announcement</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Switch
+            id="dev-ann-enabled"
+            checked={fields.devNotificationEnabled}
+            onCheckedChange={(v) => set("devNotificationEnabled", v)}
+            className="scale-90"
+          />
+          <Label htmlFor="dev-ann-enabled" className="text-[11px] text-violet-200/80 cursor-pointer">
+            {fields.devNotificationEnabled ? "Live — customers will see it" : "Hidden"}
+          </Label>
+        </div>
+
+        <Input
+          value={fields.devNotificationTitle}
+          onChange={(e) => set("devNotificationTitle", e.target.value)}
+          placeholder="Title — e.g. New feature alert!"
+          className="h-8 text-xs bg-black/30 border-fuchsia-500/20 text-violet-100 placeholder:text-violet-400/40"
+        />
+        <Textarea
+          value={fields.devNotificationBody}
+          onChange={(e) => set("devNotificationBody", e.target.value)}
+          placeholder="Message for customers…"
+          rows={2}
+          className="text-xs resize-none bg-black/30 border-fuchsia-500/20 text-violet-100 placeholder:text-violet-400/40"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            value={fields.devNotificationCtaLabel}
+            onChange={(e) => set("devNotificationCtaLabel", e.target.value)}
+            placeholder="Button label"
+            className="h-8 text-xs bg-black/30 border-fuchsia-500/20 text-violet-100 placeholder:text-violet-400/40"
+          />
+          <Input
+            value={fields.devNotificationCtaUrl}
+            onChange={(e) => set("devNotificationCtaUrl", e.target.value)}
+            placeholder="Button URL"
+            disabled={!fields.devNotificationCtaLabel}
+            className="h-8 text-xs bg-black/30 border-fuchsia-500/20 text-violet-100 placeholder:text-violet-400/40"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-[11px] text-violet-300/60 whitespace-nowrap">Shows per user</Label>
+          <Input
+            type="number"
+            min={1}
+            max={10}
+            value={fields.devNotificationMaxShows}
+            onChange={(e) => set("devNotificationMaxShows", Math.max(1, parseInt(e.target.value) || 1))}
+            className="h-8 w-16 text-xs bg-black/30 border-fuchsia-500/20 text-violet-100"
+          />
+        </div>
+        <Button
+          size="sm"
+          onClick={saveAnnouncement}
+          disabled={saveStatus === "saving"}
+          className="w-full h-8 text-xs font-bold text-white border-0"
+          style={{ background: ACCENT_GRADIENT }}
+        >
+          {saveStatus === "saving" ? (
+            <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Saving…</>
+          ) : saveStatus === "saved" ? (
+            <><CheckCircle2 className="h-3 w-3 mr-1.5" /> Saved!</>
+          ) : (
+            "Save announcement"
+          )}
+        </Button>
+        <p className="text-[10px] text-violet-300/50 leading-relaxed">
+          Editing the title, message, or button resets the show count for every customer.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tools tab — quick links + env info + log breakdown ────────────────────
 const QUICK_LINKS = [
   { label: "GitHub Repo", href: "https://github.com/Ranger9845/sweet-street-co-llc", icon: GitBranch },
@@ -460,8 +671,77 @@ function ToolsTab({ logs }: { logs: LogEntry[] }) {
     { log: 0, info: 0, warn: 0, error: 0 } as Record<LogEntry["level"], number>
   );
 
+  const [copied, setCopied] = useState(false);
+  const copyLogs = () => {
+    const text = logs.map((l) => `[${l.ts}] [${l.level.toUpperCase()}] ${l.msg}`).join("\n");
+    navigator.clipboard?.writeText(text || "(no logs captured)").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }).catch(() => {});
+  };
+
+  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  const loadMs = nav ? Math.round(nav.loadEventEnd - nav.startTime) : null;
+  const ttfbMs = nav ? Math.round(nav.responseStart - nav.startTime) : null;
+  const memory = (performance as Performance & { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+
   return (
     <div className="space-y-4">
+      {/* Quick actions */}
+      <div>
+        <p className="text-[11px] text-violet-300/60 mb-1.5 font-medium uppercase tracking-wide">Quick actions</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          <button
+            onClick={copyLogs}
+            className="flex flex-col items-center gap-1 rounded-lg bg-black/30 border border-fuchsia-500/15 px-2 py-2 text-[10px] font-medium text-violet-200/90 hover:border-fuchsia-400/40 hover:text-fuchsia-200 transition-colors"
+          >
+            {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-fuchsia-400/70" />}
+            {copied ? "Copied!" : "Copy logs"}
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="flex flex-col items-center gap-1 rounded-lg bg-black/30 border border-fuchsia-500/15 px-2 py-2 text-[10px] font-medium text-violet-200/90 hover:border-fuchsia-400/40 hover:text-fuchsia-200 transition-colors"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-fuchsia-400/70" />
+            Reload page
+          </button>
+          <button
+            onClick={() => {
+              try { localStorage.clear(); sessionStorage.clear(); } catch {}
+              window.location.reload();
+            }}
+            className="flex flex-col items-center gap-1 rounded-lg bg-black/30 border border-fuchsia-500/15 px-2 py-2 text-[10px] font-medium text-violet-200/90 hover:border-fuchsia-400/40 hover:text-fuchsia-200 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-fuchsia-400/70" />
+            Clear storage
+          </button>
+        </div>
+      </div>
+
+      {/* Performance */}
+      <div>
+        <p className="text-[11px] text-violet-300/60 mb-1.5 font-medium uppercase tracking-wide">Performance</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="rounded-lg bg-black/30 border border-fuchsia-500/15 px-2 py-2 text-center">
+            <Gauge className="h-3.5 w-3.5 mx-auto mb-1 text-fuchsia-400/70" />
+            <p className="text-sm font-bold text-fuchsia-200">{loadMs !== null ? `${loadMs}ms` : "—"}</p>
+            <p className="text-[9px] text-violet-300/50 uppercase tracking-wide">Page load</p>
+          </div>
+          <div className="rounded-lg bg-black/30 border border-fuchsia-500/15 px-2 py-2 text-center">
+            <Server className="h-3.5 w-3.5 mx-auto mb-1 text-fuchsia-400/70" />
+            <p className="text-sm font-bold text-fuchsia-200">{ttfbMs !== null ? `${ttfbMs}ms` : "—"}</p>
+            <p className="text-[9px] text-violet-300/50 uppercase tracking-wide">TTFB</p>
+          </div>
+          <div className="rounded-lg bg-black/30 border border-fuchsia-500/15 px-2 py-2 text-center">
+            <Cpu className="h-3.5 w-3.5 mx-auto mb-1 text-fuchsia-400/70" />
+            <p className="text-sm font-bold text-fuchsia-200">
+              {memory ? `${Math.round(memory.usedJSHeapSize / 1048576)}MB` : "—"}
+            </p>
+            <p className="text-[9px] text-violet-300/50 uppercase tracking-wide">JS heap</p>
+          </div>
+        </div>
+      </div>
+
       {/* Quick links */}
       <div>
         <p className="text-[11px] text-violet-300/60 mb-1.5 font-medium uppercase tracking-wide">Quick links</p>
