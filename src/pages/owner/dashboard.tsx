@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { Link } from "wouter";
+import { useUser } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { BubbleCupLoader } from "@/components/bubble-cup-loader";
@@ -118,6 +119,116 @@ type LiveCart = {
   subtotal: number;
   updatedAt: number;
 };
+
+// ─── Dev Work Session — shows live clock-in status + hours worked ────────────
+type DevClockState = {
+  active: { id: number; clockInAt: string } | null;
+  totals: { todaySeconds: number; weekSeconds: number; allSeconds: number };
+};
+
+function formatDevDuration(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${Math.floor(totalSeconds % 60)}s`;
+}
+
+function useDevClockState() {
+  const { user } = useUser();
+  const email = user?.primaryEmailAddress?.emailAddress ?? "";
+  const [state, setState] = useState<DevClockState | null>(null);
+
+  useEffect(() => {
+    if (!email) return;
+    let active = true;
+    const poll = () => {
+      fetch("/api/dev/clock", { headers: { "x-clerk-user-email": email } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d && active) setState(d); })
+        .catch(() => {});
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => { active = false; clearInterval(id); };
+  }, [email]);
+
+  return state;
+}
+
+function DevWorkSessionSection() {
+  const state = useDevClockState();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!state?.active) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [state?.active]);
+
+  if (!state) return null;
+
+  const liveSeconds = state.active
+    ? Math.max(0, Math.round((now - new Date(state.active.clockInAt).getTime()) / 1000))
+    : 0;
+
+  return (
+    <div
+      className="mt-4 rounded-2xl border border-fuchsia-900/20 p-4 shadow-sm text-white"
+      style={{ background: "linear-gradient(135deg, #1a0b2e 0%, #2d1248 50%, #4a1d63 100%)" }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <span className="relative flex h-2.5 w-2.5">
+          {state.active ? (
+            <>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </>
+          ) : (
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-400/40" />
+          )}
+        </span>
+        <h2 className="font-bold text-base">Dev Work Session</h2>
+        <span
+          className={`ml-auto text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+            state.active
+              ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
+              : "bg-white/5 text-violet-300 border-white/10"
+          }`}
+        >
+          {state.active ? "Live — working now" : "Off the clock"}
+        </span>
+      </div>
+
+      {state.active && (
+        <p
+          className="text-2xl font-bold tabular-nums mb-3"
+          style={{
+            backgroundImage: "linear-gradient(90deg, #c026d3, #a855f7, #ec4899)",
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+          }}
+        >
+          {formatDevDuration(liveSeconds)} <span className="text-xs font-medium text-violet-300/60">elapsed</span>
+        </p>
+      )}
+
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: "Today", secs: state.totals.todaySeconds },
+          { label: "This week", secs: state.totals.weekSeconds },
+          { label: "All time", secs: state.totals.allSeconds },
+        ].map(({ label, secs }) => (
+          <div key={label} className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-center">
+            <p className="text-[10px] text-violet-300/60 uppercase tracking-wide">{label}</p>
+            <p className="text-base font-bold text-fuchsia-200 mt-0.5">{formatDevDuration(secs)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ─── useLiveCarts — polls /api/live-carts every 3 seconds ────────────────────
 function useLiveCarts(password: string | undefined) {
@@ -1775,6 +1886,9 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+
+            {/* Dev Work Session — live clock-in tracker */}
+            <DevWorkSessionSection />
 
             {/* Being Rung Up */}
             {liveCarts.length > 0 && (

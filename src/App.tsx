@@ -10,6 +10,8 @@ import { useEffect, useRef, useState } from "react";
 import NotFound from "@/pages/not-found";
 import { OwnerAuthProvider, useOwnerAuth } from "@/components/owner-auth-provider";
 import { SplashScreen } from "@/components/splash-screen";
+import { DevConsole } from "@/components/dev-console";
+import { useIsDevUser } from "@/hooks/use-dev-user";
 
 // Customer pages
 import Home from "@/pages/home";
@@ -81,6 +83,20 @@ function OwnerClerkSync() {
   }, [isLoaded, email]);
 
   return null;
+}
+
+// Renders the Dev Console — and swaps in the dark purple/pink/violet dev
+// theme — only for the developer's own Clerk account.
+function DevConsoleGate() {
+  const isDevUser = useIsDevUser();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dev-theme", isDevUser);
+    return () => document.documentElement.classList.remove("dev-theme");
+  }, [isDevUser]);
+
+  if (!isDevUser) return null;
+  return <DevConsole />;
 }
 
 function ClerkQueryClientCacheInvalidator() {
@@ -184,6 +200,7 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <OwnerClerkSync />
         <ClerkQueryClientCacheInvalidator />
+        <DevConsoleGate />
         <TooltipProvider>
           <CartProvider>
             <CartFlyProvider>

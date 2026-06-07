@@ -54,6 +54,8 @@ import inventoryCatalogHandler from "./api/inventory/catalog.js";
 import inventorySearchHandler from "./api/inventory/search.js";
 import inventoryReceiveHandler from "./api/inventory/receive.js";
 import inventoryReportHandler from "./api/inventory/report.js";
+import devClockHandler from "./api/dev/clock.js";
+import devReportIssueHandler from "./api/dev/report-issue.js";
 
 const app = express();
 app.use(express.json());
@@ -133,6 +135,10 @@ app.all("/api/inventory/catalog", adapt(inventoryCatalogHandler));
 app.all("/api/inventory/search", adapt(inventorySearchHandler));
 app.all("/api/inventory/receive", adapt(inventoryReceiveHandler));
 app.all("/api/inventory/report", adapt(inventoryReportHandler));
+
+// Dev Console
+app.all("/api/dev/clock", adapt(devClockHandler));
+app.all("/api/dev/report-issue", adapt(devReportIssueHandler));
 
 // Discount codes
 app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));
