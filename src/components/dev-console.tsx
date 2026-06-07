@@ -9,6 +9,7 @@ import {
 import { useUser } from "@clerk/react";
 import { getConsoleLogs } from "@/lib/console-capture";
 import { useAutoDevMode } from "@/components/dev-mode-panel";
+import { useOwnerAuth } from "@/components/owner-auth-provider";
 import { usePlatform, type Platform } from "@/hooks/use-platform";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -476,6 +477,7 @@ const announcementDefaults: AnnouncementFields = {
 };
 
 function SiteTab() {
+  const { password: ownerPw } = useOwnerAuth();
   const { platform, rawPlatform, preference, forcePlatform } = usePlatform();
 
   const activeThemeValue: Platform | "auto" =
@@ -509,7 +511,7 @@ function SiteTab() {
     try {
       const res = await fetch("/api/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-owner-password": ownerPw },
         body: JSON.stringify(fields),
       });
       if (!res.ok) throw new Error("Failed");
