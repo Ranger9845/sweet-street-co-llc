@@ -4,13 +4,19 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // ── Direct Supabase client (set once from main.tsx) ───────────────────────
 let _sb: SupabaseClient | null = null;
 
-/** Call once at app startup (before rendering) with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. */
-export function initSupabase(url: string, anonKey: string) {
-  _sb = createClient(url, anonKey);
+/** Call once at app startup with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
+ *  If either value is missing the hooks silently fall back to the API server. */
+export function initSupabase(url: string | undefined, anonKey: string | undefined) {
+  if (!url || !anonKey) return;
+  try {
+    _sb = createClient(url, anonKey);
+  } catch {
+    // misconfigured — hooks will fall back to API
+  }
 }
 
-function sb(): SupabaseClient {
-  if (!_sb) throw new Error("initSupabase() has not been called");
+/** Returns the Supabase client if available, or null to signal API fallback. */
+function tryGetSb(): SupabaseClient | null {
   return _sb;
 }
 
@@ -223,9 +229,13 @@ export function useListMenuItems(params?: Record<string, unknown>, options?: Hoo
   return useQuery({
     queryKey: getListMenuItemsQueryKey(params),
     queryFn: async () => {
-      const { data, error } = await sb().from("menu_items").select("*").order("id");
-      if (error) throw new Error(error.message);
-      return (data ?? []).map((r) => menuItemToClient(r as Record<string, unknown>));
+      const client = tryGetSb();
+      if (client) {
+        const { data, error } = await client.from("menu_items").select("*").order("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).map((r) => menuItemToClient(r as Record<string, unknown>));
+      }
+      return fetchJson<MenuItem[]>(`/api/menu-items${buildQueryString(params)}`);
     },
     ...options?.query,
   });
@@ -235,9 +245,13 @@ export function useListModifiers() {
   return useQuery({
     queryKey: ["listModifiers"],
     queryFn: async () => {
-      const { data, error } = await sb().from("modifiers").select("*").order("id");
-      if (error) throw new Error(error.message);
-      return (data ?? []) as Array<{ id: number; name: string; price: number; available?: boolean }>;
+      const client = tryGetSb();
+      if (client) {
+        const { data, error } = await client.from("modifiers").select("*").order("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []) as Array<{ id: number; name: string; price: number; available?: boolean }>;
+      }
+      return fetchJson<Array<{ id: number; name: string; price: number; available?: boolean }>>("/api/modifiers");
     },
   });
 }
@@ -349,9 +363,13 @@ export function useListPosCategories(options?: HookOptions) {
   return useQuery({
     queryKey: getListPosCategoriesQueryKey(),
     queryFn: async () => {
-      const { data, error } = await sb().from("pos_categories").select("*").order("sort_order");
-      if (error) throw new Error(error.message);
-      return (data ?? []).map((r) => posCategoryToClient(r as Record<string, unknown>));
+      const client = tryGetSb();
+      if (client) {
+        const { data, error } = await client.from("pos_categories").select("*").order("sort_order");
+        if (error) throw new Error(error.message);
+        return (data ?? []).map((r) => posCategoryToClient(r as Record<string, unknown>));
+      }
+      return fetchJson<PosCategory[]>("/api/pos/categories");
     },
     ...options?.query,
   });
@@ -361,9 +379,13 @@ export function useListRewards(options?: HookOptions) {
   return useQuery({
     queryKey: ["listRewards"],
     queryFn: async () => {
-      const { data, error } = await sb().from("rewards").select("*").eq("active", true).order("id");
-      if (error) throw new Error(error.message);
-      return (data ?? []).map((r) => rewardToClient(r as Record<string, unknown>));
+      const client = tryGetSb();
+      if (client) {
+        const { data, error } = await client.from("rewards").select("*").eq("active", true).order("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).map((r) => rewardToClient(r as Record<string, unknown>));
+      }
+      return fetchJson<ReturnType<typeof rewardToClient>[]>("/api/rewards");
     },
     ...options?.query,
   });
@@ -373,25 +395,29 @@ export function useGetPointsBalance(clerkUserId: string | undefined, options?: H
   return useQuery({
     queryKey: ["pointsBalance", clerkUserId],
     queryFn: async () => {
-      const { data, error } = await sb()
-        .from("points_ledger")
-        .select("points, type, description, created_at, id")
-        .eq("clerk_user_id", clerkUserId!)
-        .order("created_at", { ascending: false });
-      if (error) throw new Error(error.message);
-      const rows = data ?? [];
-      const balance = rows.reduce((sum, r) => sum + (r.points ?? 0), 0);
-      return {
-        balance,
-        userId: clerkUserId,
-        history: rows.map((r) => ({
-          id: r.id,
-          points: r.points,
-          type: r.type,
-          description: r.description,
-          createdAt: r.created_at,
-        })),
-      };
+      const client = tryGetSb();
+      if (client) {
+        const { data, error } = await client
+          .from("points_ledger")
+          .select("points, type, description, created_at, id")
+          .eq("clerk_user_id", clerkUserId!)
+          .order("created_at", { ascending: false });
+        if (error) throw new Error(error.message);
+        const rows = data ?? [];
+        const balance = rows.reduce((sum, r) => sum + (r.points ?? 0), 0);
+        return {
+          balance,
+          userId: clerkUserId,
+          history: rows.map((r) => ({
+            id: r.id,
+            points: r.points,
+            type: r.type,
+            description: r.description,
+            createdAt: r.created_at,
+          })),
+        };
+      }
+      return fetchJson<{ balance: number; userId: string; history: unknown[] }>(`/api/points/${clerkUserId}`);
     },
     enabled: !!clerkUserId,
     ...options?.query,
