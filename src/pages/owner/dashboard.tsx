@@ -1779,6 +1779,21 @@ export default function Dashboard() {
   }, [recipeOrder, enrichedPreparing, showDrinkChecklist, allDrinksChecked, markReadyBlocked,
       recipeOrderDrinkList, checkedDrinks, bumpPending, openRecipeSheet, toggleDrink, handleBump]);
 
+  // P key shortcut: mark the first ready order as picked up
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "p" && e.key !== "P") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+      const first = enrichedReady[0];
+      if (first && !updatePending) {
+        handleMarkPickedUp(first.id, first.customerName ?? "", !!first.paidAt);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [enrichedReady, updatePending, handleMarkPickedUp]);
+
   const initialLoading = statsLoading || pendingLoading || preparingLoading || readyLoading;
   if (initialLoading) {
     return (

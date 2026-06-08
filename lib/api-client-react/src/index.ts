@@ -1,4 +1,51 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+// ── Direct Supabase client (set once from main.tsx) ───────────────────────
+let _sb: SupabaseClient | null = null;
+
+/** Call once at app startup (before rendering) with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. */
+export function initSupabase(url: string, anonKey: string) {
+  _sb = createClient(url, anonKey);
+}
+
+function sb(): SupabaseClient {
+  if (!_sb) throw new Error("initSupabase() has not been called");
+  return _sb;
+}
+
+// ── Shared snake_case → camelCase mappers ─────────────────────────────────
+function menuItemToClient(row: Record<string, unknown>): MenuItem {
+  return {
+    ...row,
+    sizePrices: row.size_prices,
+    sizePrepSteps: row.size_prep_steps,
+    sizeIngredients: row.size_ingredients,
+    modifierIds: row.modifier_ids,
+    posCategoryId: row.pos_category_id,
+    posSortOrder: row.pos_sort_order,
+    posHidden: row.pos_hidden,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  } as MenuItem;
+}
+
+function posCategoryToClient(row: Record<string, unknown>): PosCategory {
+  return {
+    ...row,
+    sortOrder: row.sort_order,
+    backgroundColor: row.background_color,
+  } as PosCategory;
+}
+
+function rewardToClient(row: Record<string, unknown>) {
+  return {
+    ...row,
+    pointsCost: row.points_cost,
+    discountType: row.discount_type,
+    discountValue: row.discount_value,
+  };
+}
 
 export type MenuItem = {
   id: number;
@@ -175,7 +222,11 @@ export const getGetSettingsQueryKey = () => queryKey("getSettings");
 export function useListMenuItems(params?: Record<string, unknown>, options?: HookOptions) {
   return useQuery({
     queryKey: getListMenuItemsQueryKey(params),
-    queryFn: () => fetchJson<MenuItem[]>(`/api/menu-items${buildQueryString(params)}`),
+    queryFn: async () => {
+      const { data, error } = await sb().from("menu_items").select("*").order("id");
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r) => menuItemToClient(r as Record<string, unknown>));
+    },
     ...options?.query,
   });
 }
@@ -183,7 +234,11 @@ export function useListMenuItems(params?: Record<string, unknown>, options?: Hoo
 export function useListModifiers() {
   return useQuery({
     queryKey: ["listModifiers"],
-    queryFn: () => fetchJson<Array<{ id: number; name: string; price: number; available?: boolean }>>("/api/modifiers"),
+    queryFn: async () => {
+      const { data, error } = await sb().from("modifiers").select("*").order("id");
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Array<{ id: number; name: string; price: number; available?: boolean }>;
+    },
   });
 }
 
@@ -293,7 +348,52 @@ export function useUpdateSettings() {
 export function useListPosCategories(options?: HookOptions) {
   return useQuery({
     queryKey: getListPosCategoriesQueryKey(),
-    queryFn: () => fetchJson<PosCategory[]>("/api/pos/categories"),
+    queryFn: async () => {
+      const { data, error } = await sb().from("pos_categories").select("*").order("sort_order");
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r) => posCategoryToClient(r as Record<string, unknown>));
+    },
+    ...options?.query,
+  });
+}
+
+export function useListRewards(options?: HookOptions) {
+  return useQuery({
+    queryKey: ["listRewards"],
+    queryFn: async () => {
+      const { data, error } = await sb().from("rewards").select("*").eq("active", true).order("id");
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r) => rewardToClient(r as Record<string, unknown>));
+    },
+    ...options?.query,
+  });
+}
+
+export function useGetPointsBalance(clerkUserId: string | undefined, options?: HookOptions) {
+  return useQuery({
+    queryKey: ["pointsBalance", clerkUserId],
+    queryFn: async () => {
+      const { data, error } = await sb()
+        .from("points_ledger")
+        .select("points, type, description, created_at, id")
+        .eq("clerk_user_id", clerkUserId!)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      const rows = data ?? [];
+      const balance = rows.reduce((sum, r) => sum + (r.points ?? 0), 0);
+      return {
+        balance,
+        userId: clerkUserId,
+        history: rows.map((r) => ({
+          id: r.id,
+          points: r.points,
+          type: r.type,
+          description: r.description,
+          createdAt: r.created_at,
+        })),
+      };
+    },
+    enabled: !!clerkUserId,
     ...options?.query,
   });
 }

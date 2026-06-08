@@ -12,6 +12,7 @@
   },
   "types": "src/index.ts",
   "dependencies": {
-    "@tanstack/react-query": "^5.100.14"
+    "@tanstack/react-query": "^5.100.14",
+    "@supabase/supabase-js": "^2.106.2"
   }
 }

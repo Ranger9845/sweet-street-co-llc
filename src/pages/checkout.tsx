@@ -4,7 +4,7 @@ import { useCart, getItemPrice, formatSize } from "@/components/cart-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateOrder } from "@workspace/api-client-react";
+import { useCreateOrder, useListRewards, useGetPointsBalance } from "@workspace/api-client-react";
 import { useLocation, Link } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -125,8 +125,12 @@ export default function Checkout() {
   const [discountLoading, setDiscountLoading] = useState(false);
   const [discountError, setDiscountError] = useState("");
   const [appliedReward, setAppliedReward] = useState<RewardInfo>(null);
-  const [pointsBalance, setPointsBalance] = useState<number>(0);
-  const [availableRewards, setAvailableRewards] = useState<NonNullable<RewardInfo>[]>([]);
+
+  // Rewards and points now query Supabase directly — no round-trip through the API server
+  const { data: _rewardsData } = useListRewards();
+  const { data: _pointsData, refetch: refetchPoints } = useGetPointsBalance(user?.id);
+  const availableRewards = (_rewardsData ?? []) as NonNullable<RewardInfo>[];
+  const pointsBalance = _pointsData?.balance ?? 0;
   const [celebrationReward, setCelebrationReward] = useState<RewardInfo>(null);
   const [celebrationMsg, setCelebrationMsg] = useState("");
 
@@ -166,36 +170,17 @@ export default function Checkout() {
     }, 600);
   };
 
-  useEffect(() => {
-    if (!user?.id) return;
-    const email = user.primaryEmailAddress?.emailAddress ?? "";
-    const pointsUrl = `/api/points/${user.id}${email ? `?email=${encodeURIComponent(email)}` : ""}`;
-    Promise.all([
-      fetch(pointsUrl).then(r => r.ok ? r.json() : null),
-      fetch("/api/rewards").then(r => r.ok ? r.json() : []),
-    ]).then(([pts, rewards]) => {
-      setPointsBalance(pts?.balance ?? 0);
-      setAvailableRewards((Array.isArray(rewards) ? rewards : []).filter((r: NonNullable<RewardInfo>) => r?.active !== false));
-    }).catch(() => {});
-  }, [user?.id]);
-
+  // Auto-apply a pending reward stored in sessionStorage (set when user clicks redeem on rewards page)
   useEffect(() => {
     const pending = sessionStorage.getItem("pendingRewardId");
-    if (!pending || !user?.id) return;
+    if (!pending || !availableRewards.length) return;
     const rewardId = parseInt(pending, 10);
-    Promise.all([
-      fetch(`/api/rewards`).then(r => r.ok ? r.json() : []),
-      fetch(`/api/points/${user.id}`).then(r => r.ok ? r.json() : null),
-    ]).then(([rewards, points]) => {
-      const r = (rewards as RewardInfo[]).find((x) => x?.id === rewardId);
-      const balance = points?.balance ?? 0;
-      setPointsBalance(balance);
-      if (r && balance >= r.pointsCost) {
-        triggerRewardCelebration(r);
-      }
-      sessionStorage.removeItem("pendingRewardId");
-    }).catch(() => sessionStorage.removeItem("pendingRewardId"));
-  }, [user?.id]);
+    const r = availableRewards.find((x) => x?.id === rewardId);
+    if (r && pointsBalance >= r.pointsCost) {
+      triggerRewardCelebration(r);
+    }
+    sessionStorage.removeItem("pendingRewardId");
+  }, [availableRewards, pointsBalance]);
 
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledFor, setScheduledFor] = useState("");
