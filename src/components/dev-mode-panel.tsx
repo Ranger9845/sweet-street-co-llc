@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Beaker, X, Megaphone, ChevronUp, Loader2, CheckCircle2, Palette,
-  Store, Activity, User2, Copy, RefreshCw, Trash2, Check,
+  Store, Activity, User2, Copy, RefreshCw, Trash2, Check, Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { setExtraHeaders } from "@workspace/api-client-react";
@@ -90,6 +90,11 @@ export function DevModePanel() {
   const [shopToggling, setShopToggling] = useState(false);
   const [copied, setCopied] = useState<"email" | "id" | null>(null);
 
+  // Dev clock override ("time machine" — preview schedule-based behavior)
+  const [clockOverride, setClockOverride] = useState<string | null>(null);
+  const [clockInput, setClockInput] = useState("");
+  const [clockSaving, setClockSaving] = useState(false);
+
   // Auto-activate for the dev account + apply purple theme
   useEffect(() => {
     if (!user?.id || user.id !== DEV_USER_ID) return;
@@ -117,6 +122,16 @@ export function DevModePanel() {
     } catch {}
   }, []);
 
+  const loadClock = useCallback(async () => {
+    try {
+      const r = await fetch("/api/dev/clock", { headers: { "x-dev-key": DEV_KEY } });
+      if (r.ok) {
+        const data = await r.json();
+        setClockOverride(data.override ?? null);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (!active) return;
     fetch("/api/settings")
@@ -136,8 +151,11 @@ export function DevModePanel() {
   }, [active]);
 
   useEffect(() => {
-    if (panelOpen) loadStatus();
-  }, [panelOpen, loadStatus]);
+    if (panelOpen) {
+      loadStatus();
+      loadClock();
+    }
+  }, [panelOpen, loadStatus, loadClock]);
 
   const handleSecretClick = useCallback(() => {
     setClickCount((c) => {
@@ -184,6 +202,41 @@ export function DevModePanel() {
       if (r.ok) setDevStatus((s) => s ? { ...s, shopOpen: open } : s);
     } catch {}
     setShopToggling(false);
+  };
+
+  const handleSetClock = async () => {
+    if (!clockInput) return;
+    const iso = new Date(clockInput).toISOString();
+    setClockSaving(true);
+    try {
+      const r = await fetch("/api/dev/clock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-dev-key": DEV_KEY },
+        body: JSON.stringify({ override: iso }),
+      });
+      if (r.ok) {
+        setClockOverride(iso);
+        loadStatus();
+      }
+    } catch {}
+    setClockSaving(false);
+  };
+
+  const handleResetClock = async () => {
+    setClockSaving(true);
+    try {
+      const r = await fetch("/api/dev/clock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-dev-key": DEV_KEY },
+        body: JSON.stringify({ override: null }),
+      });
+      if (r.ok) {
+        setClockOverride(null);
+        setClockInput("");
+        loadStatus();
+      }
+    } catch {}
+    setClockSaving(false);
   };
 
   const handleClearNotifs = () => {
@@ -233,6 +286,17 @@ export function DevModePanel() {
   const fmtServerTime = (iso: string) => {
     try {
       return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    } catch {
+      return iso;
+    }
+  };
+
+  const fmtClockOverride = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString("en-US", {
+        weekday: "short", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
     } catch {
       return iso;
     }
@@ -375,6 +439,54 @@ export function DevModePanel() {
                           <Loader2 className="h-3 w-3 animate-spin" />
                           Loading…
                         </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-border" />
+
+                    {/* ── Time Machine ───────────────────────────────────── */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-violet-500" />
+                        <span className="text-sm font-semibold text-foreground">Time Machine</span>
+                      </div>
+
+                      <div className="bg-muted/50 rounded-xl px-3 py-2 space-y-1">
+                        <p className="text-xs font-semibold text-foreground">
+                          {clockOverride
+                            ? `🕒 Simulating ${fmtClockOverride(clockOverride)}`
+                            : "🕒 Using real server time"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                          Override "now" to preview schedule, happy-hour, and closing-soon banners without waiting for real time to pass.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="datetime-local"
+                          value={clockInput}
+                          onChange={(e) => setClockInput(e.target.value)}
+                          className="h-8 text-xs flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs"
+                          disabled={!clockInput || clockSaving}
+                          onClick={handleSetClock}
+                        >
+                          {clockSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply"}
+                        </Button>
+                      </div>
+
+                      {clockOverride && (
+                        <button
+                          onClick={handleResetClock}
+                          disabled={clockSaving}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors disabled:opacity-50"
+                        >
+                          Reset to real time
+                        </button>
                       )}
                     </div>
 

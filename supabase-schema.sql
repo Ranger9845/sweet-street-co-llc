@@ -35,11 +35,15 @@ CREATE TABLE IF NOT EXISTS settings (
   dev_notification_version   text,
   dev_notification_cta_label text,
   dev_notification_cta_url   text,
+  dev_clock_override         timestamptz,
   CONSTRAINT settings_single_row CHECK (id = 1)
 );
 
 -- Ensure the single settings row exists
 INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- Add dev_clock_override to existing tables that predate this column
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS dev_clock_override timestamptz;
 
 -- ── menu_items ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS menu_items (

@@ -59,6 +59,7 @@ import giftCardsBalanceHandler from "./api/gift-cards/balance.js";
 import giftCardsRedeemHandler from "./api/gift-cards/redeem.js";
 import devStatusHandler from "./api/dev/status.js";
 import devShopToggleHandler from "./api/dev/shop-toggle.js";
+import devClockHandler from "./api/dev/clock.js";
 
 const app = express();
 app.use(express.json());
@@ -168,6 +169,7 @@ app.all("/api/user/profile", adapt(userProfileHandler));
 // Dev tools
 app.all("/api/dev/status", adapt(devStatusHandler));
 app.all("/api/dev/shop-toggle", adapt(devShopToggleHandler));
+app.all("/api/dev/clock", adapt(devClockHandler));
 
 // SSE endpoint — pushes a heartbeat every 15s so the order board
 // invalidates its queries and stays live without polling overhead.

@@ -23,8 +23,8 @@ const HOURS_DISPLAY = [
 ];
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-function getCtParts(): { hour: number; minute: number; dow: number } {
-  const now = new Date();
+function getCtParts(at?: Date): { hour: number; minute: number; dow: number } {
+  const now = at ?? new Date();
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago",
     weekday: "short",
@@ -42,8 +42,8 @@ function getCtParts(): { hour: number; minute: number; dow: number } {
   };
 }
 
-function computeScheduleFields(manualOpen: boolean) {
-  const { hour, minute, dow } = getCtParts();
+function computeScheduleFields(manualOpen: boolean, at?: Date) {
+  const { hour, minute, dow } = getCtParts(at);
   const isSunday = dow === 0;
   const todaySchedule = SCHEDULE[dow];
   const todayHours = todaySchedule ? HOURS_DISPLAY[dow] : undefined;
@@ -184,13 +184,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const client = toClient(data as Record<string, unknown>);
-    const hour = new Date().getHours() + new Date().getMinutes() / 60;
+
+    // Dev mode can fast-forward/rewind "now" (settings.dev_clock_override) to
+    // preview schedule-based behavior without waiting for real time to pass.
+    const overrideRaw = data.dev_clock_override as string | null | undefined;
+    const clockOverride = overrideRaw ? new Date(overrideRaw) : undefined;
+    const now = clockOverride ?? new Date();
+
+    const hour = now.getHours() + now.getMinutes() / 60;
     const start = parseTime((data.happy_hour_start as string) ?? "15:00");
     const end = parseTime((data.happy_hour_end as string) ?? "17:00");
     const isHappyHour = !!(data.happy_hour_enabled && hour >= start && hour < end);
 
     const { isSunday, isOpen, todayHours, closingSoon, minutesUntilClose, nextOpenLabel } =
-      computeScheduleFields(!!data.is_open);
+      computeScheduleFields(!!data.is_open, clockOverride);
 
     return res.json({
       ...client,
