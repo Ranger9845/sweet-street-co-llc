@@ -34,6 +34,7 @@ import POSSetup from "@/pages/owner/pos-setup";
 import Settings from "@/pages/owner/settings";
 import SquarePOSResult from "@/pages/owner/square-pos-result";
 import InventoryManagement from "@/pages/owner/inventory";
+import DbStats from "@/pages/owner/db-stats";
 
 const queryClient = new QueryClient();
 
@@ -144,6 +145,7 @@ function Router() {
       <Route path="/owner/pos">{() => <OwnerRoute component={OwnerPOS} />}</Route>
       <Route path="/owner/pos-setup">{() => <OwnerRoute component={POSSetup} />}</Route>
       <Route path="/owner/inventory">{() => <OwnerRoute component={InventoryManagement} />}</Route>
+      <Route path="/owner/db-stats">{() => <OwnerRoute component={DbStats} />}</Route>
       <Route path="/owner/settings">{() => <OwnerRoute component={Settings} />}</Route>
       <Route path="/owner/square-pos-result">{() => <OwnerRoute component={SquarePOSResult} />}</Route>
       <Route path="/owner">{() => <OwnerRoute component={OwnerDashboard} />}</Route>
