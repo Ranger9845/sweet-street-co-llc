@@ -81,11 +81,13 @@
     "zod": "4.4.3"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.1",
     "@clerk/react": "^6.2.1",
     "@supabase/supabase-js": "^2.106.2",
     "barcode-detector": "^3.2.0",
     "express": "^4.21.2",
     "resend": "^6.12.4",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "twilio": "^5.10.4"
   }
 }

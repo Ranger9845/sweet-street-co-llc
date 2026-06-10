@@ -62,9 +62,11 @@ import giftCardsRedeemHandler from "./api/gift-cards/redeem.js";
 import devStatusHandler from "./api/dev/status.js";
 import devShopToggleHandler from "./api/dev/shop-toggle.js";
 import devClockHandler from "./api/dev/clock.js";
+import smsWebhookHandler from "./api/sms/webhook.js";
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: false })); // Twilio webhooks send form-encoded bodies
 
 // Merges Express path params into req.query so handlers can use req.query.id
 // the same way they do on Vercel (where Vercel injects dynamic segments into query).
@@ -174,6 +176,9 @@ app.all("/api/user/profile", adapt(userProfileHandler));
 app.all("/api/dev/status", adapt(devStatusHandler));
 app.all("/api/dev/shop-toggle", adapt(devShopToggleHandler));
 app.all("/api/dev/clock", adapt(devClockHandler));
+
+// SMS AI assistant ("Sweet Street Buddy") — Twilio webhook
+app.all("/api/sms/webhook", adapt(smsWebhookHandler));
 
 // SSE endpoint — pushes a heartbeat every 15s so the order board
 // invalidates its queries and stays live without polling overhead.
