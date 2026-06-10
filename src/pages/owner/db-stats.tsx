@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { OwnerLayout } from "@/components/layout/owner-layout";
 import { useOwnerAuth } from "@/components/owner-auth-provider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DbTableBrowser } from "@/components/owner/db-table-browser";
 import {
   Database, RefreshCw, Loader2, DollarSign, ShoppingBag, Star,
-  Tag, Gift, Package, Award, TrendingUp,
+  Tag, Gift, Package, Award, TrendingUp, Table2,
 } from "lucide-react";
 
 interface DbStats {
@@ -26,7 +28,7 @@ interface DbStats {
   };
 }
 
-const TABLE_LABELS: Record<string, string> = {
+export const TABLE_LABELS: Record<string, string> = {
   settings: "Settings",
   menu_items: "Menu Items",
   modifiers: "Modifiers",
@@ -91,15 +93,15 @@ export default function DbStats() {
 
   return (
     <OwnerLayout>
-      <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-6 animate-in fade-in duration-300">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <Database className="h-7 w-7 text-violet-500" />
-              Database Overview
+              Database
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Read-only snapshot of every table and a few key business metrics.
+              Read-only stats and a full table browser/editor for every table.
             </p>
           </div>
           <button
@@ -112,6 +114,17 @@ export default function DbStats() {
           </button>
         </div>
 
+        <Tabs defaultValue="overview">
+          <TabsList className="bg-white border border-border rounded-xl p-1 h-auto">
+            <TabsTrigger value="overview" className="rounded-lg gap-1.5 py-1.5 px-3">
+              <Database className="h-4 w-4" /> Overview
+            </TabsTrigger>
+            <TabsTrigger value="browse" className="rounded-lg gap-1.5 py-1.5 px-3">
+              <Table2 className="h-4 w-4" /> Browse Tables
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6 mt-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -172,6 +185,12 @@ export default function DbStats() {
             </div>
           </>
         )}
+          </TabsContent>
+
+          <TabsContent value="browse" className="mt-4">
+            <DbTableBrowser />
+          </TabsContent>
+        </Tabs>
       </div>
     </OwnerLayout>
   );
