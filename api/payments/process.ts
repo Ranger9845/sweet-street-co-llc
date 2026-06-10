@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { supabase, setCors, orderToClient, err, sendOrderConfirmationEmail, sendPushToOwners } from "../_utils";
+import { supabase, setCors, orderToClient, err, sendOrderConfirmationEmail } from "../_utils";
 import {
   getSquareBaseUrl,
   normalizePhone,
@@ -108,12 +108,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
       sendOrderConfirmationEmail(orderData);
-      sendPushToOwners({
-        title: "New order!",
-        body: `${orderData.customer_name ?? "Customer"} — $${Number(orderData.total_amount ?? 0).toFixed(2)}`,
-        url: "/owner",
-        tag: "sweetstreet-new-order",
-      });
       return res.json(orderToClient(orderData));
     }
     return res.json({ success: true });
@@ -212,12 +206,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     sendOrderConfirmationEmail(paidOrder);
-    sendPushToOwners({
-      title: "New order!",
-      body: `${paidOrder.customer_name ?? "Customer"} — $${Number(paidOrder.total_amount ?? 0).toFixed(2)}`,
-      url: "/owner",
-      tag: "sweetstreet-new-order",
-    });
 
     return res.json({ success: true, paymentId: squareData.payment?.id, order: orderToClient(paidOrder) });
   } catch (e: unknown) {

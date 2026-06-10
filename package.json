@@ -52,7 +52,6 @@
     "@types/node": "25.9.1",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
-    "@types/web-push": "^3.6.4",
     "@vercel/node": "^5.8.8",
     "@vitejs/plugin-react": "5.2.0",
     "@workspace/api-client-react": "file:./lib/api-client-react",
@@ -87,7 +86,6 @@
     "barcode-detector": "^3.2.0",
     "express": "^4.21.2",
     "resend": "^6.12.4",
-    "tsx": "^4.19.2",
-    "web-push": "^3.6.7"
+    "tsx": "^4.19.2"
   }
 }

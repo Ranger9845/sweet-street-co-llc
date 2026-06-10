@@ -221,16 +221,6 @@ CREATE TABLE IF NOT EXISTS gift_cards (
   created_at          timestamptz DEFAULT now()
 );
 
--- ── push_subscriptions ─────────────────────────────────────
--- Web Push subscriptions for owner devices (new-order alerts).
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-  id         bigserial PRIMARY KEY,
-  endpoint   text UNIQUE NOT NULL,
-  p256dh     text NOT NULL,
-  auth       text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
 -- ============================================================
 -- Done! All tables created.
 -- ============================================================
