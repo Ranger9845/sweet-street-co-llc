@@ -114,13 +114,13 @@ function OwnerSignInForm() {
 }
 
 export default function OwnerLogin() {
-  const { isOwner, verifyClerkUser } = useOwnerAuth();
+  const { isOwner, verifying, verifyClerkUser } = useOwnerAuth();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const [, setLocation] = useLocation();
+  const [sessionGranted, setSessionGranted] = useState(() => !!sessionStorage.getItem("ownerSessionGranted"));
 
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? null;
-  const isOwnerEmail = userEmail?.toLowerCase() === OWNER_EMAIL.toLowerCase();
 
   useEffect(() => {
     if (isOwner) setLocation("/owner");
@@ -128,7 +128,7 @@ export default function OwnerLogin() {
 
   if (isOwner) return null;
 
-  if (!isLoaded) {
+  if (!isLoaded || (user && sessionGranted && verifying)) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center">
         <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
@@ -136,7 +136,9 @@ export default function OwnerLogin() {
     );
   }
 
-  if (user && !isOwnerEmail) {
+  // Verification was attempted (via the button below) and the backend
+  // rejected this email — it's not in the allowed owner emails list.
+  if (user && sessionGranted) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-muted/50 p-4">
         <div className="w-full max-w-md bg-white border border-border rounded-2xl shadow-sm p-8 text-center space-y-5">
@@ -156,7 +158,7 @@ export default function OwnerLogin() {
     );
   }
 
-  if (user && isOwnerEmail) {
+  if (user) {
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-muted/50 p-4 gap-6">
         <Logo />
@@ -165,6 +167,7 @@ export default function OwnerLogin() {
             className="w-full rounded-xl gap-2"
             onClick={() => {
               sessionStorage.setItem("ownerSessionGranted", "1");
+              setSessionGranted(true);
               verifyClerkUser(userEmail);
             }}
           >
