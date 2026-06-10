@@ -13,6 +13,7 @@ import {
   CheckCircle2, ChefHat, Clock, TrendingUp, Receipt, Zap,
   Store, TrendingDown, BarChart2, Info, Sparkles, Coffee,
   GraduationCap, Sun, AlarmClock, Star, Bot, Loader2, Tag,
+  Smartphone,
 } from "lucide-react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { Link } from "wouter";
@@ -20,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { BubbleCupLoader } from "@/components/bubble-cup-loader";
 import { useNewOrderSound } from "@/hooks/use-new-order-sound";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { useOrderEvents } from "@/hooks/useOrderEvents";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1603,6 +1605,22 @@ export default function Dashboard() {
     else if (result === "denied") toast({ title: "Notifications blocked", variant: "destructive" });
   };
 
+  const push = usePushNotifications(password);
+  const handleEnablePush = async () => {
+    const ok = await push.subscribe();
+    if (ok) toast({ title: "Push notifications on", description: "You'll get new-order alerts on this device, even when it's closed." });
+    else toast({ title: "Couldn't enable push", description: "Permission denied or unsupported on this browser.", variant: "destructive" });
+  };
+  const handleDisablePush = async () => {
+    await push.unsubscribe();
+    toast({ title: "Push notifications off" });
+  };
+  const handleTestPush = async () => {
+    const ok = await push.sendTest();
+    toast(ok ? { title: "Test push sent", description: "It should arrive on every subscribed device shortly." }
+              : { title: "Couldn't send test push", variant: "destructive" });
+  };
+
   const [bumpPending, setBumpPending] = useState(false);
   const [updatePending, setUpdatePending] = useState(false);
 
@@ -1752,6 +1770,34 @@ export default function Dashboard() {
               ) : (
                 <Button size="sm" variant="outline" onClick={handleEnableSound} className="border-border bg-white hover:bg-muted/50 rounded-xl shadow-sm text-sm">
                   <Bell className="h-4 w-4 mr-2" /> Turn on ding
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Right: push-to-phone controls (works even when this device is closed) */}
+          {push.supported && (
+            <div className="flex items-center gap-2">
+              {push.status === "subscribed" ? (
+                <>
+                  <Badge className="bg-muted text-foreground border border-border gap-1.5 text-xs py-1 px-2.5 rounded-lg shadow-sm">
+                    <Smartphone className="h-3 w-3" /> Push on
+                  </Badge>
+                  <Button variant="ghost" size="sm" onClick={handleTestPush} className="h-9 px-2.5 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted">
+                    Test
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleDisablePush} className="h-9 w-9 p-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted">
+                    <BellOff className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : push.status === "denied" ? (
+                <Badge className="bg-muted text-muted-foreground border border-border gap-1.5 text-xs py-1 px-2.5 rounded-lg shadow-sm">
+                  <Smartphone className="h-3 w-3" /> Push blocked
+                </Badge>
+              ) : (
+                <Button size="sm" variant="outline" disabled={push.loading} onClick={handleEnablePush} className="border-border bg-white hover:bg-muted/50 rounded-xl shadow-sm text-sm">
+                  {push.loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Smartphone className="h-4 w-4 mr-2" />}
+                  Push to Phone
                 </Button>
               )}
             </div>

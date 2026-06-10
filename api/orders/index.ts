@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { supabase, setCors, orderToClient, err, getShopTimeInfo, sendOrderConfirmationEmail } from "../_utils";
+import { supabase, setCors, orderToClient, err, getShopTimeInfo, sendOrderConfirmationEmail, sendPushToOwners } from "../_utils";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
@@ -59,9 +59,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single();
 
     if (orderErr) return err(res, 400, orderErr.message);
-    // Don't send confirmation email for card orders yet — send it after payment clears
+    // Don't send confirmation email/push for card orders yet — send after payment clears
     if (!isCardPayment) {
       sendOrderConfirmationEmail(order as Record<string, unknown>);
+      sendPushToOwners({
+        title: "New order!",
+        body: `${fields.customerName ?? "Customer"} — $${Number(fields.totalAmount ?? 0).toFixed(2)}`,
+        url: "/owner",
+        tag: "sweetstreet-new-order",
+      });
       // Deduct loyalty points immediately for pay-in-store orders
       if (fields.rewardId && fields.clerkUserId) {
         sb.from("rewards")

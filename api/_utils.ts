@@ -150,3 +150,45 @@ export async function sendOrderConfirmationEmail(order: Record<string, unknown>)
     // Email failure should never block the order response
   }
 }
+
+// Sends a Web Push notification to every subscribed owner device.
+// Expired/invalid subscriptions (404/410) are pruned automatically.
+export async function sendPushToOwners(payload: { title: string; body: string; url?: string; tag?: string }): Promise<{ sent: number; failed: number }> {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) return { sent: 0, failed: 0 };
+
+  let sent = 0;
+  let failed = 0;
+  try {
+    const webpush = (await import("web-push")).default;
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT || "mailto:ldfarris2007@gmail.com",
+      publicKey,
+      privateKey,
+    );
+
+    const sb = supabase();
+    const { data: subs } = await sb.from("push_subscriptions").select("*");
+    if (!subs?.length) return { sent: 0, failed: 0 };
+
+    await Promise.all(subs.map(async (sub: Record<string, unknown>) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint as string, keys: { p256dh: sub.p256dh as string, auth: sub.auth as string } },
+          JSON.stringify(payload),
+        );
+        sent++;
+      } catch (e: unknown) {
+        failed++;
+        const statusCode = (e as { statusCode?: number })?.statusCode;
+        if (statusCode === 404 || statusCode === 410) {
+          sb.from("push_subscriptions").delete().eq("id", sub.id as number).then(() => {}).catch(() => {});
+        }
+      }
+    }));
+  } catch {
+    // Push failure should never block the order response
+  }
+  return { sent, failed };
+}
