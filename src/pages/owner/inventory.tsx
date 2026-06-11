@@ -230,6 +230,7 @@ function ReceiveTab({ headers }: ReceiveFormProps) {
 
   const results = searchData?.results ?? [];
   const showDropdown = debouncedQuery.length >= 2 && !selected && results.length > 0;
+  const showNoResults = debouncedQuery.length >= 2 && !selected && !isFetching && results.length === 0;
 
   return (
     <div className="space-y-4">
@@ -289,6 +290,12 @@ function ReceiveTab({ headers }: ReceiveFormProps) {
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
             ))}
+          </div>
+        )}
+
+        {showNoResults && (
+          <div className="absolute z-20 top-full mt-1 left-0 right-12 bg-white border border-border rounded-xl shadow-lg px-4 py-3 text-sm text-muted-foreground text-center">
+            No matching items for "{debouncedQuery}"
           </div>
         )}
       </div>

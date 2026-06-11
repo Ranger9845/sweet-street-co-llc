@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useUser } from "@clerk/react";
 import { getConsoleLogs } from "@/lib/console-capture";
-import { useAutoDevMode } from "@/components/dev-mode-panel";
+import { useAutoDevMode, getDevHeaders } from "@/components/dev-mode-panel";
 import { useOwnerAuth } from "@/components/owner-auth-provider";
 import { usePlatform, type Platform } from "@/hooks/use-platform";
 import { Switch } from "@/components/ui/switch";
@@ -486,6 +486,65 @@ function SiteTab() {
   const [fields, setFields] = useState<AnnouncementFields>(announcementDefaults);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
+  // Time Machine — preview schedule, happy-hour, and closing-soon behavior
+  // by overriding the shop's notion of "now" without waiting for real time to pass.
+  const [clockOverride, setClockOverride] = useState<string | null>(null);
+  const [clockInput, setClockInput] = useState("");
+  const [clockSaving, setClockSaving] = useState(false);
+
+  const loadClock = useCallback(() => {
+    fetch("/api/dev/clock-override", { headers: getDevHeaders() })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setClockOverride(d.override ?? null))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadClock();
+  }, [loadClock]);
+
+  const handleSetClock = async () => {
+    if (!clockInput) return;
+    const iso = new Date(clockInput).toISOString();
+    setClockSaving(true);
+    try {
+      const r = await fetch("/api/dev/clock-override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getDevHeaders() },
+        body: JSON.stringify({ override: iso }),
+      });
+      if (r.ok) setClockOverride(iso);
+    } catch {}
+    setClockSaving(false);
+  };
+
+  const handleResetClock = async () => {
+    setClockSaving(true);
+    try {
+      const r = await fetch("/api/dev/clock-override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getDevHeaders() },
+        body: JSON.stringify({ override: null }),
+      });
+      if (r.ok) {
+        setClockOverride(null);
+        setClockInput("");
+      }
+    } catch {}
+    setClockSaving(false);
+  };
+
+  const fmtClockOverride = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString("en-US", {
+        weekday: "short", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+    } catch {
+      return iso;
+    }
+  };
+
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => (r.ok ? r.json() : null))
@@ -531,6 +590,55 @@ function SiteTab() {
           Shop is force-opened for testing — your account bypasses closed/Sunday hours automatically.
         </span>
       </div>
+
+      {/* Time Machine */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5 text-fuchsia-300" />
+          <span className="text-xs font-bold text-violet-100">Time Machine</span>
+        </div>
+
+        <div className="rounded-lg bg-black/30 border border-fuchsia-500/15 px-3 py-2">
+          <p className="text-[11px] font-semibold text-violet-100">
+            {clockOverride
+              ? `Simulating ${fmtClockOverride(clockOverride)}`
+              : "Using real server time"}
+          </p>
+          <p className="text-[10px] text-violet-300/50 leading-relaxed mt-0.5">
+            Override "now" to preview schedule, happy-hour, and closing-soon banners without waiting for real time to pass.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Input
+            type="datetime-local"
+            value={clockInput}
+            onChange={(e) => setClockInput(e.target.value)}
+            className="h-8 text-xs flex-1 bg-black/30 border-fuchsia-500/20 text-violet-100"
+          />
+          <Button
+            size="sm"
+            className="h-8 text-xs font-bold text-white border-0"
+            style={{ background: ACCENT_GRADIENT }}
+            disabled={!clockInput || clockSaving}
+            onClick={handleSetClock}
+          >
+            {clockSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply"}
+          </Button>
+        </div>
+
+        {clockOverride && (
+          <button
+            onClick={handleResetClock}
+            disabled={clockSaving}
+            className="text-[11px] text-rose-400 hover:text-rose-300 font-medium transition-colors disabled:opacity-50"
+          >
+            Reset to real time
+          </button>
+        )}
+      </div>
+
+      <div className="border-t border-fuchsia-500/15" />
 
       {/* Theme simulator */}
       <div className="space-y-2.5">

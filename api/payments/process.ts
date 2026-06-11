@@ -5,35 +5,34 @@ import {
   normalizePhone,
   searchLoyaltyAccount,
   createLoyaltyAccount,
-  accumulateLoyaltyPoints,
-  getLoyaltyProgramId,
+  adjustLoyaltyPoints,
 } from "../loyalty/_square-loyalty";
 
 /**
- * Fire-and-forget: accumulate Square loyalty points for an order.
- * Errors are silently swallowed so they never break payment responses.
+ * Fire-and-forget: award Square loyalty points for a website order.
+ * Uses a manual adjustment because web orders have no Square Order ID.
  */
-async function awardLoyaltyPoints(phone: string, orderId: string): Promise<void> {
+async function awardLoyaltyPoints(phone: string, points: number): Promise<void> {
   const token = process.env.SQUARE_ACCESS_TOKEN;
-  if (!token) return;
-
+  if (!token || points <= 0) return;
   const normalized = normalizePhone(phone);
   if (!normalized) return;
-
   try {
     const baseUrl = getSquareBaseUrl();
     let account = await searchLoyaltyAccount(baseUrl, token, normalized);
-    if (!account) {
-      account = await createLoyaltyAccount(baseUrl, token, normalized);
-    }
+    if (!account) account = await createLoyaltyAccount(baseUrl, token, normalized);
     if (account) {
-      await accumulateLoyaltyPoints(baseUrl, token, account.id, String(orderId));
+      await adjustLoyaltyPoints(baseUrl, token, account.id, points, `Website order — ${points} pt${points !== 1 ? "s" : ""} earned`);
     }
   } catch (e) {
-    console.error("Square loyalty accumulate error:", e instanceof Error ? e.message : e);
+    console.error("Square loyalty award error:", e instanceof Error ? e.message : e);
   }
 }
 
+/**
+ * Fire-and-forget: deduct Square loyalty points when a reward is redeemed.
+ * Creates the account first if it doesn't exist yet.
+ */
 async function deductLoyaltyPoints(phone: string, points: number): Promise<void> {
   const token = process.env.SQUARE_ACCESS_TOKEN;
   if (!token || points <= 0) return;
@@ -41,19 +40,11 @@ async function deductLoyaltyPoints(phone: string, points: number): Promise<void>
   if (!normalized) return;
   try {
     const baseUrl = getSquareBaseUrl();
-    const account = await searchLoyaltyAccount(baseUrl, token, normalized);
-    if (!account) return;
-    const programId = await getLoyaltyProgramId(baseUrl, token);
-    const { default: fetch } = await import("node-fetch");
-    await fetch(`${baseUrl}/v2/loyalty/events/adjust`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        idempotency_key: `redeem-${account.id}-${Date.now()}`,
-        loyalty_account_id: account.id,
-        adjust_points: { points: -points, reason: "Reward redeemed" },
-      }),
-    });
+    let account = await searchLoyaltyAccount(baseUrl, token, normalized);
+    if (!account) account = await createLoyaltyAccount(baseUrl, token, normalized);
+    if (account) {
+      await adjustLoyaltyPoints(baseUrl, token, account.id, -points, "Reward redeemed");
+    }
   } catch (e) {
     console.error("Square loyalty deduct error:", e instanceof Error ? e.message : e);
   }
@@ -83,21 +74,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .single();
       if (error) return err(res, 400, error.message);
       const orderData = data as Record<string, unknown>;
+      const earned = Math.floor(Number(orderData.total_amount ?? 0));
       // Mirror points to Supabase ledger (Clerk-based, kept as fallback)
-      if (orderData.clerk_user_id) {
-        const earned = Math.floor(Number(orderData.total_amount ?? 0));
-        if (earned > 0) {
-          sb.from("points_ledger").insert({
-            clerk_user_id: orderData.clerk_user_id,
-            points: earned,
-            type: "order",
-            description: `Order #${orderId}`,
-          }).then(() => {}).catch(() => {});
-        }
+      if (orderData.clerk_user_id && earned > 0) {
+        sb.from("points_ledger").insert({
+          clerk_user_id: orderData.clerk_user_id,
+          points: earned,
+          type: "order",
+          description: `Order #${orderId}`,
+        }).then(() => {}).catch(() => {});
       }
       // Award Square loyalty points by phone (fire-and-forget)
       if (orderData.customer_phone) {
-        awardLoyaltyPoints(String(orderData.customer_phone), String(orderId));
+        awardLoyaltyPoints(String(orderData.customer_phone), earned);
       }
       // Deduct reward points if a reward was redeemed
       if (rewardId) {
@@ -183,21 +172,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (updateErr) return err(res, 500, updateErr.message);
 
     const paidOrder = updatedOrder as Record<string, unknown>;
+    const earned = Math.floor(Number(paidOrder.total_amount ?? 0));
     // Mirror points to Supabase ledger (Clerk-based, kept as fallback)
-    if (paidOrder.clerk_user_id) {
-      const earned = Math.floor(Number(paidOrder.total_amount ?? 0));
-      if (earned > 0) {
-        sb.from("points_ledger").insert({
-          clerk_user_id: paidOrder.clerk_user_id,
-          points: earned,
-          type: "order",
-          description: `Order #${orderId}`,
-        }).then(() => {}).catch(() => {});
-      }
+    if (paidOrder.clerk_user_id && earned > 0) {
+      sb.from("points_ledger").insert({
+        clerk_user_id: paidOrder.clerk_user_id,
+        points: earned,
+        type: "order",
+        description: `Order #${orderId}`,
+      }).then(() => {}).catch(() => {});
     }
     // Award Square loyalty points by phone (fire-and-forget)
     if (paidOrder.customer_phone) {
-      awardLoyaltyPoints(String(paidOrder.customer_phone), String(orderId));
+      awardLoyaltyPoints(String(paidOrder.customer_phone), earned);
     }
     // Deduct reward points if a reward was redeemed
     if (rewardId) {

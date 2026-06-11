@@ -12,7 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Minus, Plus, Trash2, ArrowRight, ShoppingBag, LogIn, Tag, CheckCircle2, CreditCard, XCircle, CalendarClock, Clock } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowRight, ShoppingBag, LogIn, Tag, CheckCircle2, CreditCard, XCircle, CalendarClock, Clock, Gift } from "lucide-react";
 import { CupSpinner } from "@/components/cup-spinner";
 import { Separator } from "@/components/ui/separator";
 import { useUser, Show } from "@clerk/react";
@@ -189,7 +189,11 @@ export default function Checkout() {
   const [squareReady, setSquareReady] = useState(false);
   const [squareCard, setSquareCard] = useState<SquarePaymentForm | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "later">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "later" | "gift_card">("card");
+  const [giftCardInput, setGiftCardInput] = useState("");
+  const [appliedGiftCard, setAppliedGiftCard] = useState<{ gan: string; balanceCents: number } | null>(null);
+  const [giftCardLoading, setGiftCardLoading] = useState(false);
+  const [giftCardError, setGiftCardError] = useState("");
   const [cardDeclined, setCardDeclined] = useState(false);
   const [googlePayReady, setGooglePayReady] = useState(false);
   const squareContainerRef = useRef<HTMLDivElement>(null);
@@ -424,6 +428,40 @@ export default function Checkout() {
     }
   };
 
+  const checkGiftCard = async () => {
+    const gan = giftCardInput.trim().replace(/\s/g, "");
+    if (!gan) return;
+    setGiftCardLoading(true);
+    setGiftCardError("");
+    try {
+      const res = await fetch("/api/gift-cards/balance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gan }),
+      });
+      const data = await res.json() as { balanceCents?: number; error?: string };
+      if (!res.ok) {
+        setGiftCardError(data.error ?? "Gift card not found");
+        setAppliedGiftCard(null);
+      } else {
+        const balanceCents = data.balanceCents ?? 0;
+        const orderCents = Math.round(grandTotal * 100);
+        if (balanceCents < orderCents) {
+          setGiftCardError(`Gift card balance ($${(balanceCents / 100).toFixed(2)}) is less than order total ($${grandTotal.toFixed(2)})`);
+          setAppliedGiftCard(null);
+        } else {
+          setAppliedGiftCard({ gan, balanceCents });
+          setPaymentMethod("gift_card");
+          setGiftCardError("");
+        }
+      }
+    } catch {
+      setGiftCardError("Failed to check gift card balance");
+    } finally {
+      setGiftCardLoading(false);
+    }
+  };
+
   const applyDiscount = async () => {
     if (!discountCodeInput.trim()) return;
     setDiscountLoading(true);
@@ -525,6 +563,33 @@ export default function Checkout() {
           return;
         }
         stashEarned(order.id, grandTotal, true);
+        setLocation(`/order-status/${order.id}`);
+        clearCart();
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Failed to place order");
+      } finally {
+        setPaymentLoading(false);
+      }
+      return;
+    }
+
+    if (paymentMethod === "gift_card" && appliedGiftCard) {
+      setPaymentLoading(true);
+      try {
+        const order = await createOrderViaApi();
+        const res = await fetch("/api/gift-cards/redeem", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getDevHeaders() },
+          credentials: "include",
+          body: JSON.stringify({ gan: appliedGiftCard.gan, orderId: order.id }),
+        });
+        if (!res.ok) {
+          const { error } = await res.json().catch(() => ({ error: "Gift card redemption failed" }));
+          await fetch(`/api/orders/${order.id}`, { method: "DELETE" }).catch(() => {});
+          alert(error || "Gift card redemption failed");
+          return;
+        }
+        stashEarned(order.id, grandTotal, false);
         setLocation(`/order-status/${order.id}`);
         clearCart();
       } catch (e) {
@@ -941,8 +1006,52 @@ export default function Checkout() {
             </CardContent>
           </Card>
 
-          {/* Payment Method */}
+          {/* Gift Card */}
           <Card className="bg-card border-0 shadow-md">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Gift className="h-5 w-5 text-primary" /> Gift Card
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {appliedGiftCard ? (
+                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    <div>
+                      <p className="font-medium text-emerald-800">Gift card applied!</p>
+                      <p className="text-sm text-emerald-600">
+                        Balance: ${(appliedGiftCard.balanceCents / 100).toFixed(2)} · covers your full order
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setAppliedGiftCard(null); setGiftCardInput(""); setPaymentMethod("card"); }}>
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Gift card number (e.g. 7783 3200 0100 1635)"
+                      value={giftCardInput}
+                      onChange={e => { setGiftCardInput(e.target.value); setGiftCardError(""); }}
+                      className="rounded-xl bg-white/80 border-border/40 font-mono"
+                      onKeyDown={e => e.key === "Enter" && checkGiftCard()}
+                    />
+                    <Button type="button" variant="outline" onClick={checkGiftCard} disabled={giftCardLoading || !giftCardInput.trim()} className="shrink-0">
+                      {giftCardLoading ? <CupSpinner size={18} /> : "Apply"}
+                    </Button>
+                  </div>
+                  {giftCardError && <p className="text-sm text-destructive">{giftCardError}</p>}
+                  <p className="text-xs text-muted-foreground">Got a Sweet Street gift card? Enter the number to pay.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payment Method */}
+          <Card className={`bg-card border-0 shadow-md ${appliedGiftCard ? "opacity-50 pointer-events-none" : ""}`}>
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-primary" /> Payment

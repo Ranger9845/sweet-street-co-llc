@@ -18,33 +18,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { default: fetch } = await import("node-fetch");
     const baseUrl = getSquareBaseUrl();
 
-    // Search variations by text — matches name, SKU, UPC, description
-    const searchRes = await fetch(`${baseUrl}/v2/catalog/search`, {
+    // Search items by text — matches name, description, abbreviation, SKU, and UPC
+    // (covers scanned barcodes, which only match on sku/upc, not just name)
+    const searchRes = await fetch(`${baseUrl}/v2/catalog/search-catalog-items`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        object_types: ["ITEM_VARIATION"],
-        query: { text_query: { keywords: [q] } },
-        limit: 20,
-      }),
+      body: JSON.stringify({ text_filter: q, limit: 20 }),
     });
     const searchData = (await searchRes.json()) as any;
-    const variationObjects: any[] = searchData.objects ?? [];
+    const matchedItems: any[] = searchData.items ?? [];
+
+    // Flatten variations from each matched item, keeping the parent item name
+    const variationObjects: any[] = [];
+    const itemNames: Record<string, string> = {};
+    for (const item of matchedItems) {
+      itemNames[item.id] = item.item_data?.name ?? "";
+      for (const v of item.item_data?.variations ?? []) variationObjects.push(v);
+    }
 
     if (variationObjects.length === 0) return res.json({ results: [] });
-
-    // Fetch parent item names
-    const itemIds = [...new Set(variationObjects.map((v: any) => v.item_variation_data?.item_id).filter(Boolean))];
-    const itemNames: Record<string, string> = {};
-    if (itemIds.length > 0) {
-      const itemRes = await fetch(`${baseUrl}/v2/catalog/batch-retrieve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ object_ids: itemIds }),
-      });
-      const itemData = (await itemRes.json()) as any;
-      for (const o of itemData.objects ?? []) itemNames[o.id] = o.item_data?.name ?? "";
-    }
 
     // Batch-retrieve inventory counts
     const variationIds = variationObjects.map((v: any) => v.id);

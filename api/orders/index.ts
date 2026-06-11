@@ -62,6 +62,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Don't send confirmation email for card orders yet — send it after payment clears
     if (!isCardPayment) {
       sendOrderConfirmationEmail(order as Record<string, unknown>);
+      // Deduct loyalty points immediately for pay-in-store orders
+      if (fields.rewardId && fields.clerkUserId) {
+        sb.from("rewards")
+          .select("points_cost, name")
+          .eq("id", fields.rewardId)
+          .maybeSingle()
+          .then(({ data: reward }) => {
+            if (!reward?.points_cost) return;
+            sb.from("points_ledger").insert({
+              clerk_user_id: fields.clerkUserId,
+              points: -Number(reward.points_cost),
+              type: "redeem",
+              description: `Redeemed: ${reward.name ?? "Reward"} (Order #${(order as Record<string, unknown>).id})`,
+            }).then(() => {}).catch((e: Error) => console.error("[orders] points deduction:", e.message));
+          })
+          .catch((e: Error) => console.error("[orders] reward lookup:", e.message));
+      }
     }
     return res.status(201).json(orderToClient(order as Record<string, unknown>));
   }

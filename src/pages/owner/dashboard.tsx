@@ -12,7 +12,7 @@ import {
   AlertTriangle, Eye, Undo2, PackageCheck, ShoppingBag,
   CheckCircle2, ChefHat, Clock, TrendingUp, Receipt, Zap,
   Store, TrendingDown, BarChart2, Info, Sparkles, Coffee,
-  GraduationCap, Sun, AlarmClock, Star, Bot, Loader2,
+  GraduationCap, Sun, AlarmClock, Star, Bot, Loader2, Tag,
 } from "lucide-react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { Link } from "wouter";
@@ -1268,6 +1268,17 @@ function OrderCard({ order, variant = "pending", now, onBump, onMarkPickedUp, on
             })}
           </div>
 
+          {/* Discount line */}
+          {Number(order.discountAmount) > 0 && (
+            <div className="flex items-center justify-between text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-2 py-1 mb-1">
+              <span className="flex items-center gap-1 font-medium">
+                <Tag className="h-3 w-3" />
+                {order.discountCode ? order.discountCode : "Discount"}
+              </span>
+              <span className="font-semibold tabular-nums">−${Number(order.discountAmount).toFixed(2)}</span>
+            </div>
+          )}
+
           {/* Total line */}
           <div className="flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-1 mb-2">
             <span>{(order.items ?? []).length} item{(order.items ?? []).length !== 1 ? "s" : ""}</span>
@@ -1666,7 +1677,7 @@ export default function Dashboard() {
         }));
       });
   }, [recipeOrder]);
-  const allDrinksChecked = recipeOrderDrinkList.length > 0 && recipeOrderDrinkList.every(d => checkedDrinks.has(d.key));
+  const allDrinksChecked = recipeOrderDrinkList.length > 0 && recipeOrderDrinkList.every((d: { key: string }) => checkedDrinks.has(d.key));
   // Checklist shown (and blocks Mark Ready) for any active order with 2+ drinks
   const showDrinkChecklist = recipeOrderDrinkList.length >= 2 &&
     (recipeOrder?.status === "preparing" || recipeOrder?.status === "pending");
@@ -2037,7 +2048,7 @@ export default function Dashboard() {
                             <CheckCircle2 className="h-3 w-3" /> Drink Checklist
                           </p>
                           <div className="space-y-1.5">
-                            {recipeOrderDrinkList.map((drink) => {
+                            {recipeOrderDrinkList.map((drink: { key: string; name: string; size?: string | null; quantity: number }) => {
                               const checked = checkedDrinks.has(drink.key);
                               return (
                                 <button key={drink.key} onClick={() => toggleDrink(drink.key)}

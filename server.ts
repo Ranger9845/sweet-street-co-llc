@@ -40,6 +40,8 @@ import posItemAssignmentsHandler from "./api/pos-item-assignments.js";
 import adminDailySummaryHandler from "./api/admin/daily-summary/send.js";
 import ownerVerifyHandler from "./api/owner/verify.js";
 import ownerApiTokenHandler from "./api/owner/api-token.js";
+import ownerDbStatsHandler from "./api/owner/db-stats.js";
+import ownerDbTableHandler from "./api/owner/db/[table].js";
 import ownerAllowedEmailsHandler from "./api/owner/allowed-emails.js";
 import authVerifyOwnerHandler from "./api/auth/verify-owner.js";
 import sendFixEmailHandler from "./api/send-fix-email.js";
@@ -54,11 +56,19 @@ import inventoryCatalogHandler from "./api/inventory/catalog.js";
 import inventorySearchHandler from "./api/inventory/search.js";
 import inventoryReceiveHandler from "./api/inventory/receive.js";
 import inventoryReportHandler from "./api/inventory/report.js";
+import giftCardsPurchaseHandler from "./api/gift-cards/purchase.js";
+import giftCardsBalanceHandler from "./api/gift-cards/balance.js";
+import giftCardsRedeemHandler from "./api/gift-cards/redeem.js";
+import devStatusHandler from "./api/dev/status.js";
+import devShopToggleHandler from "./api/dev/shop-toggle.js";
 import devClockHandler from "./api/dev/clock.js";
+import devClockOverrideHandler from "./api/dev/clock-override.js";
 import devReportIssueHandler from "./api/dev/report-issue.js";
+import smsWebhookHandler from "./api/sms/webhook.js";
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: false })); // Twilio webhooks send form-encoded bodies
 
 // Merges Express path params into req.query so handlers can use req.query.id
 // the same way they do on Vercel (where Vercel injects dynamic segments into query).
@@ -130,15 +140,16 @@ app.all("/api/square/active-orders", adapt(squareActiveOrdersHandler));
 app.all("/api/square/recent-orders", adapt(squareRecentOrdersHandler));
 app.all("/api/square/sync-orders", adapt(squareSyncOrdersHandler));
 
+// Gift Cards
+app.all("/api/gift-cards/purchase", adapt(giftCardsPurchaseHandler));
+app.all("/api/gift-cards/balance", adapt(giftCardsBalanceHandler));
+app.all("/api/gift-cards/redeem", adapt(giftCardsRedeemHandler));
+
 // Inventory
 app.all("/api/inventory/catalog", adapt(inventoryCatalogHandler));
 app.all("/api/inventory/search", adapt(inventorySearchHandler));
 app.all("/api/inventory/receive", adapt(inventoryReceiveHandler));
 app.all("/api/inventory/report", adapt(inventoryReportHandler));
-
-// Dev Console
-app.all("/api/dev/clock", adapt(devClockHandler));
-app.all("/api/dev/report-issue", adapt(devReportIssueHandler));
 
 // Discount codes
 app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));
@@ -157,12 +168,25 @@ app.all("/api/admin/daily-summary/send", adapt(adminDailySummaryHandler));
 app.all("/api/owner/verify", adapt(ownerVerifyHandler));
 app.all("/api/owner/api-token", adapt(ownerApiTokenHandler));
 app.all("/api/owner/allowed-emails", adapt(ownerAllowedEmailsHandler));
+app.all("/api/owner/db-stats", adapt(ownerDbStatsHandler));
+app.all("/api/owner/db/:table", adapt(ownerDbTableHandler, ["table"]));
 app.all("/api/auth/verify-owner", adapt(authVerifyOwnerHandler));
 app.all("/api/send-fix-email", adapt(sendFixEmailHandler));
 app.all("/api/user/profile", adapt(userProfileHandler));
 
+// Dev tools
+app.all("/api/dev/status", adapt(devStatusHandler));
+app.all("/api/dev/shop-toggle", adapt(devShopToggleHandler));
+app.all("/api/dev/clock", adapt(devClockHandler));
+app.all("/api/dev/clock-override", adapt(devClockOverrideHandler));
+app.all("/api/dev/report-issue", adapt(devReportIssueHandler));
+
+// SMS AI assistant ("Sweet Street Buddy") — Twilio webhook
+app.all("/api/sms/webhook", adapt(smsWebhookHandler));
+
 // SSE endpoint — pushes a heartbeat every 15s so the order board
 // invalidates its queries and stays live without polling overhead.
+// Max lifetime is 5 minutes; the client reconnects automatically.
 app.get("/api/events/orders", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -171,7 +195,8 @@ app.get("/api/events/orders", (req, res) => {
   res.flushHeaders();
   res.write("data: connected\n\n");
   const timer = setInterval(() => res.write("data: ping\n\n"), 15000);
-  req.on("close", () => clearInterval(timer));
+  const maxAge = setTimeout(() => { clearInterval(timer); res.end(); }, 5 * 60 * 1000);
+  req.on("close", () => { clearInterval(timer); clearTimeout(maxAge); });
 });
 
 // Health check

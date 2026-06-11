@@ -25,6 +25,19 @@ async function getAllowedEmails(): Promise<string[]> {
   return [DEFAULT_OWNER_EMAIL.toLowerCase()];
 }
 
+// Same priority order as requireOwner/verify-owner: env var, then DB, then default.
+async function getOwnerPassword(): Promise<string> {
+  const envPw = process.env.OWNER_PASSWORD;
+  if (envPw) return envPw;
+
+  try {
+    const { data } = await supabase().from("settings").select("owner_password").eq("id", 1).maybeSingle();
+    return data?.owner_password ?? "owner123";
+  } catch {
+    return "owner123";
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -37,15 +50,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const allowed = await getAllowedEmails();
     if (!allowed.includes(clerkEmail)) return err(res, 403, "Forbidden");
 
-    return res.status(200).json({ token: process.env.OWNER_PASSWORD ?? "owner123" });
+    return res.status(200).json({ token: await getOwnerPassword() });
   }
 
   // POST — save allowed emails list (requires existing owner auth)
   if (req.method === "POST") {
     const pw = req.headers["x-owner-password"] as string | undefined;
-    const envPw = process.env.OWNER_PASSWORD;
-    const stored = envPw ?? "owner123";
-    if (!pw || pw !== stored) return err(res, 403, "Forbidden");
+    if (!pw || pw !== (await getOwnerPassword())) return err(res, 403, "Forbidden");
 
     const { emails } = req.body ?? {};
     if (!Array.isArray(emails)) return err(res, 400, "emails must be an array");

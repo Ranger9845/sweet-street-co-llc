@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts",
+    "build": "vite build --config vite.config.ts && ([ \"$VERCEL\" != \"1\" ] && npm run server:build || true)",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate:supabase": "node scripts/migrate-replit-to-supabase.js",
-    "server": "tsx server.ts",
+    "server": "node dist/server.js",
+    "server:build": "esbuild server.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.js",
     "server:dev": "tsx watch server.ts"
   },
   "devDependencies": {
@@ -80,11 +81,13 @@
     "zod": "4.4.3"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.1",
     "@clerk/react": "^6.2.1",
     "@supabase/supabase-js": "^2.106.2",
     "barcode-detector": "^3.2.0",
     "express": "^4.21.2",
     "resend": "^6.12.4",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "twilio": "^5.10.4"
   }
 }
