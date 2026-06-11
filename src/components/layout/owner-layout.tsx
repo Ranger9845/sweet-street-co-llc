@@ -83,7 +83,7 @@ export function OwnerLayout({ children }: { children: ReactNode }) {
       </main>
 
       <HelpBubble isOwner={true} />
-      <FeedbackWidget />
+      <FeedbackWidget hideTrigger />
     </div>
   );
 }

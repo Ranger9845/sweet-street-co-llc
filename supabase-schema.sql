@@ -221,6 +221,17 @@ CREATE TABLE IF NOT EXISTS gift_cards (
   created_at          timestamptz DEFAULT now()
 );
 
+-- ── dev_sessions (developer clock in/out time tracking) ────
+CREATE TABLE IF NOT EXISTS dev_sessions (
+  id            bigserial PRIMARY KEY,
+  clerk_email   text NOT NULL,
+  clock_in_at   timestamptz NOT NULL,
+  clock_out_at  timestamptz,
+  note          text,
+  created_at    timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS dev_sessions_email_idx ON dev_sessions (clerk_email, clock_in_at DESC);
+
 -- ============================================================
 -- Done! All tables created.
 -- ============================================================

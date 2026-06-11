@@ -11,7 +11,6 @@ import { useCartFly } from "../cart-fly";
 import { SuperBusyOverlay } from "../super-busy-overlay";
 import { WelcomeTour, useWelcomeTour, TourButton } from "../welcome-tour";
 
-import { DevModePanel } from "../dev-mode-panel";
 import { DevNotificationModal } from "../dev-notification-modal";
 import { useVisitorHeartbeat } from "@/hooks/use-visitor-heartbeat";
 import { usePlatform } from "@/hooks/use-platform";
@@ -343,7 +342,6 @@ export function CustomerLayout({ children }: { children: ReactNode }) {
 
           <div className="mt-10 pt-6 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Sweet Street Co. LLC. All rights reserved.</p>
-            <DevModePanel />
           </div>
         </div>
       </footer>

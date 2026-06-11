@@ -42,6 +42,36 @@ export function initConsoleCapture() {
   console.info = (...a) => { orig.info(...a); record("info", a); };
   console.warn = (...a) => { orig.warn(...a); record("warn", a); };
   console.error = (...a) => { orig.error(...a); record("error", a); };
+
+  // Uncaught exceptions and failed resource loads (scripts, images, etc.)
+  window.addEventListener("error", (e) => {
+    if (e.target && e.target !== window) {
+      const el = e.target as HTMLElement & { src?: string; href?: string };
+      record("error", [`Failed to load resource: ${el.tagName?.toLowerCase() ?? "resource"} ${el.src ?? el.href ?? ""}`]);
+      return;
+    }
+    record("error", [`Uncaught ${e.message}`, e.filename ? `(${e.filename}:${e.lineno}:${e.colno})` : ""]);
+  }, true);
+
+  // Unhandled promise rejections
+  window.addEventListener("unhandledrejection", (e) => {
+    const reason = e.reason instanceof Error ? e.reason.message : String(e.reason);
+    record("error", [`Unhandled rejection: ${reason}`]);
+  });
+
+  // Failed fetch requests (network errors and 4xx/5xx responses)
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async (...args: Parameters<typeof fetch>) => {
+    const url = typeof args[0] === "string" ? args[0] : (args[0] as Request)?.url ?? "";
+    try {
+      const res = await origFetch(...args);
+      if (!res.ok) record("warn", [`Fetch ${res.status} ${res.statusText}: ${url}`]);
+      return res;
+    } catch (e) {
+      record("error", [`Fetch failed: ${url} — ${e instanceof Error ? e.message : String(e)}`]);
+      throw e;
+    }
+  };
 }
 
 export function getConsoleLogs(): LogEntry[] {
