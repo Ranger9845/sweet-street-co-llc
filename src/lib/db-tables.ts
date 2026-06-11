@@ -1,0 +1,18 @@
+export const TABLE_LABELS: Record<string, string> = {
+  settings: "Settings",
+  menu_items: "Menu Items",
+  modifiers: "Modifiers",
+  pos_categories: "POS Categories",
+  orders: "Orders",
+  discount_codes: "Discount Codes",
+  rewards: "Rewards",
+  points_ledger: "Points Ledger",
+  favorites: "Favorites",
+  reviews: "Reviews",
+  live_carts: "Live Carts",
+  user_profiles: "User Profiles",
+  user_seen_points: "Seen Points",
+  inventory_receives: "Inventory Receives",
+  inventory_costs: "Inventory Costs",
+  gift_cards: "Gift Cards",
+};

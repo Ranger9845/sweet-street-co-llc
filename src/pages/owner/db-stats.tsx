@@ -3,6 +3,7 @@ import { OwnerLayout } from "@/components/layout/owner-layout";
 import { useOwnerAuth } from "@/components/owner-auth-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DbTableBrowser } from "@/components/owner/db-table-browser";
+import { TABLE_LABELS } from "@/lib/db-tables";
 import {
   Database, RefreshCw, Loader2, DollarSign, ShoppingBag, Star,
   Tag, Gift, Package, Award, TrendingUp, Table2,
@@ -27,25 +28,6 @@ interface DbStats {
     inventorySpend: number;
   };
 }
-
-export const TABLE_LABELS: Record<string, string> = {
-  settings: "Settings",
-  menu_items: "Menu Items",
-  modifiers: "Modifiers",
-  pos_categories: "POS Categories",
-  orders: "Orders",
-  discount_codes: "Discount Codes",
-  rewards: "Rewards",
-  points_ledger: "Points Ledger",
-  favorites: "Favorites",
-  reviews: "Reviews",
-  live_carts: "Live Carts",
-  user_profiles: "User Profiles",
-  user_seen_points: "Seen Points",
-  inventory_receives: "Inventory Receives",
-  inventory_costs: "Inventory Costs",
-  gift_cards: "Gift Cards",
-};
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",

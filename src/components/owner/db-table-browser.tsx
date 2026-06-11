@@ -19,7 +19,7 @@ import {
 import {
   Loader2, Pencil, Trash2, Plus, Save, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown,
 } from "lucide-react";
-import { TABLE_LABELS } from "@/pages/owner/db-stats";
+import { TABLE_LABELS } from "@/lib/db-tables";
 
 const DB_TABLES = Object.keys(TABLE_LABELS);
 const PAGE_SIZE = 20;
