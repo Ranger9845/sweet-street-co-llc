@@ -174,12 +174,22 @@ function ReceiveTab({ headers }: ReceiveFormProps) {
   const [cost, setCost] = useState("");
   const [notes, setNotes] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newVariationName, setNewVariationName] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+  const [newCode, setNewCode] = useState("");
 
   // Debounce search input
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 350);
     return () => clearTimeout(t);
   }, [query]);
+
+  // Reset the "add new item" form whenever the search changes
+  useEffect(() => {
+    setShowAddForm(false);
+  }, [debouncedQuery]);
 
   const { data: searchData, isFetching } = useQuery({
     queryKey: ["inv-search", debouncedQuery],
@@ -227,6 +237,30 @@ function ReceiveTab({ headers }: ReceiveFormProps) {
     setQuery(`${r.itemName}${r.variationName !== "Regular" ? ` — ${r.variationName}` : ""}`);
     if (r.unitCost) setCost(String(r.unitCost));
   };
+
+  const createItemMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/inventory/create-item", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          itemName: newItemName.trim(),
+          variationName: newVariationName.trim() || "Regular",
+          price: Number(newPrice),
+          sku: newCode.trim() || undefined,
+        }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json() as Promise<{ result: SearchResult }>;
+    },
+    onSuccess: ({ result }) => {
+      toast({ title: "Item created!", description: `${result.itemName} was added to your catalog.` });
+      qc.invalidateQueries({ queryKey: ["inv-catalog"] });
+      setShowAddForm(false);
+      selectResult(result);
+    },
+    onError: (e: any) => toast({ title: "Failed to create item", description: e.message, variant: "destructive" }),
+  });
 
   const results = searchData?.results ?? [];
   const showDropdown = debouncedQuery.length >= 2 && !selected && results.length > 0;
@@ -293,9 +327,73 @@ function ReceiveTab({ headers }: ReceiveFormProps) {
           </div>
         )}
 
-        {showNoResults && (
-          <div className="absolute z-20 top-full mt-1 left-0 right-12 bg-white border border-border rounded-xl shadow-lg px-4 py-3 text-sm text-muted-foreground text-center">
-            No matching items for "{debouncedQuery}"
+        {showNoResults && !showAddForm && (
+          <div className="absolute z-20 top-full mt-1 left-0 right-12 bg-white border border-border rounded-xl shadow-lg px-4 py-3 text-sm text-center space-y-2">
+            <p className="text-muted-foreground">No matching items for "{debouncedQuery}"</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-lg"
+              onClick={() => {
+                setNewItemName("");
+                setNewVariationName("");
+                setNewPrice("");
+                setNewCode(debouncedQuery);
+                setShowAddForm(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> Add as new item
+            </Button>
+          </div>
+        )}
+
+        {showNoResults && showAddForm && (
+          <div className="absolute z-20 top-full mt-1 left-0 right-12 bg-white border border-border rounded-xl shadow-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold">Add "{debouncedQuery}" as a new item</p>
+              <button onClick={() => setShowAddForm(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <Input
+              autoFocus
+              placeholder="Item name"
+              value={newItemName}
+              onChange={e => setNewItemName(e.target.value)}
+              className="h-10 rounded-xl"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Variation (e.g. Large)"
+                value={newVariationName}
+                onChange={e => setNewVariationName(e.target.value)}
+                className="h-10 rounded-xl"
+              />
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Price ($)"
+                value={newPrice}
+                onChange={e => setNewPrice(e.target.value)}
+                className="h-10 rounded-xl"
+              />
+            </div>
+            <Input
+              placeholder="SKU / barcode"
+              value={newCode}
+              onChange={e => setNewCode(e.target.value)}
+              className="h-10 rounded-xl font-mono"
+            />
+            <Button
+              className="w-full h-11 rounded-xl font-semibold"
+              disabled={!newItemName.trim() || !newPrice || Number(newPrice) < 0 || createItemMutation.isPending}
+              onClick={() => createItemMutation.mutate()}
+            >
+              {createItemMutation.isPending
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating…</>
+                : <><Plus className="h-4 w-4 mr-2" /> Create &amp; Select</>}
+            </Button>
           </div>
         )}
       </div>
