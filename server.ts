@@ -56,6 +56,7 @@ import inventoryCatalogHandler from "./api/inventory/catalog.js";
 import inventorySearchHandler from "./api/inventory/search.js";
 import inventoryReceiveHandler from "./api/inventory/receive.js";
 import inventoryReportHandler from "./api/inventory/report.js";
+import inventoryCreateItemHandler from "./api/inventory/create-item.js";
 import giftCardsPurchaseHandler from "./api/gift-cards/purchase.js";
 import giftCardsBalanceHandler from "./api/gift-cards/balance.js";
 import giftCardsRedeemHandler from "./api/gift-cards/redeem.js";
@@ -150,6 +151,7 @@ app.all("/api/inventory/catalog", adapt(inventoryCatalogHandler));
 app.all("/api/inventory/search", adapt(inventorySearchHandler));
 app.all("/api/inventory/receive", adapt(inventoryReceiveHandler));
 app.all("/api/inventory/report", adapt(inventoryReportHandler));
+app.all("/api/inventory/create-item", adapt(inventoryCreateItemHandler));
 
 // Discount codes
 app.all("/api/discount-codes/validate", adapt(discountCodesValidateHandler));
